@@ -13,23 +13,22 @@ module OneLogin
     class Utils
       @@uuid_generator = UUID.new if RUBY_VERSION < '1.9'
 
-      DSIG      = "http://www.w3.org/2000/09/xmldsig#"
-      XENC      = "http://www.w3.org/2001/04/xmlenc#"
-      DURATION_FORMAT = %r(^
-        (-?)P                       # 1: Duration sign
+      DSIG = "http://www.w3.org/2000/09/xmldsig#".freeze
+      XENC = "http://www.w3.org/2001/04/xmlenc#".freeze
+      DURATION_FORMAT = %r(\A
+        (-?)P                         # 1: Duration sign
         (?:
-          (?:(\d+)Y)?               # 2: Years
-          (?:(\d+)M)?               # 3: Months
-          (?:(\d+)D)?               # 4: Days
+          (?:(-?\d+)Y)?               # 2: Years
+          (?:(-?\d+)M)?               # 3: Months
+          (?:(-?\d+)W)?               # 4: Weeks
+          (?:(-?\d+)D)?               # 5: Days
           (?:T
-            (?:(\d+)H)?             # 5: Hours
-            (?:(\d+)M)?             # 6: Minutes
-            (?:(\d+(?:[.,]\d+)?)S)? # 7: Seconds
+            (?:(-?\d+(?:[.,]\d+)?)H)? # 6: Hours
+            (?:(-?\d+(?:[.,]\d+)?)M)? # 7: Minutes
+            (?:(-?\d+(?:[.,]\d+)?)S)? # 8: Seconds
           )?
-          |
-          (\d+)W                    # 8: Weeks
         )
-      $)x
+      \z)x.freeze
 
       # Checks if the x509 cert provided is expired
       #
@@ -40,10 +39,16 @@ module OneLogin
           cert = OpenSSL::X509::Certificate.new(cert)
         end
 
-        return cert.not_after < Time.now
+        cert.not_after < Time.now
       end
 
-      # Interprets a ISO8601 duration value relative to a given timestamp.
+      # Interprets a ISO 8601 duration value relative to a given timestamp.
+      #
+      # For robustness, this function gracefully handles the following cases
+      # which do not strictly conform to the ISO 8601 spec:
+      # - Each time unit can be negative.
+      # - Week (W) can be mixed with other units.
+      # - Hour (H) and minute (M) may be decimal values.
       #
       # @param duration [String] The duration, as a string.
       # @param timestamp [Integer] The unix timestamp we should apply the
@@ -52,24 +57,20 @@ module OneLogin
       #
       # @return [Integer] The new timestamp, after the duration is applied.
       #
-      def self.parse_duration(duration, timestamp=Time.now.utc)
+      def self.parse_duration(duration, timestamp = Time.now.utc)
         matches = duration.match(DURATION_FORMAT)
-
-        if matches.nil?
-          raise Exception.new("Invalid ISO 8601 duration")
-        end
+        raise Exception.new("Invalid ISO 8601 duration") if matches.nil?
 
         sign = matches[1] == '-' ? -1 : 1
 
-        durYears, durMonths, durDays, durHours, durMinutes, durSeconds, durWeeks =
+        durYears, durMonths, durWeeks, durDays, durHours, durMinutes, durSeconds =
           matches[2..8].map { |match| match ? sign * match.tr(',', '.').to_f : 0.0 }
 
         initial_datetime = Time.at(timestamp).utc.to_datetime
         final_datetime = initial_datetime.next_year(durYears)
         final_datetime = final_datetime.next_month(durMonths)
-        final_datetime = final_datetime.next_day((7*durWeeks) + durDays)
-        final_timestamp = final_datetime.to_time.utc.to_i + (durHours * 3600) + (durMinutes * 60) + durSeconds
-        return final_timestamp
+        final_datetime = final_datetime.next_day(7 * durWeeks + durDays)
+        final_datetime.to_time.utc.to_i + durHours * 3600 + durMinutes * 60 + durSeconds
       end
 
       # Return a properly formatted x509 certificate

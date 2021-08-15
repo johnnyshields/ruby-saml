@@ -18,7 +18,20 @@ class UtilsTest < Minitest::Test
 
       # Decimal seconds
       "PT0.5S" => "1970-01-01T00:00:00.500Z",
-      "PT0,5S" => "1970-01-01T00:00:00.500Z"
+      "PT0,5S" => "1970-01-01T00:00:00.500Z",
+
+      # ISO 8601 violation: Negative units
+      "P-1Y-1M-1DT-1H-1M-1S"  => "1970-01-01T00:00:00.500Z",
+      "-P-1Y-1M-1DT-1H-1M-1S" => "1970-01-01T00:00:00.500Z",
+
+      # ISO 8601 violation: Week mixed with other units
+      "P1Y1M1W1DT1H1M1S" => "1970-08-01T00:00:00.500Z",
+
+      # ISO 8601 violation: Decimal hours and minutes
+      "P-1Y-1M-1DT-1H-1M-1S"  => "1970-01-01T00:00:00.500Z",
+      "-P-1Y-1M-1DT-1H-1M-1S" => "1970-01-01T00:00:00.500Z",
+
+      # ISO 8601 violation: Complex cases
     }
 
     def result(duration, reference = 0)
