@@ -72,7 +72,7 @@ module OneLogin
           @decrypted_document = generate_decrypted_document
         end
 
-        super
+        super()
       end
 
       # Validates the SAML Response with the default values (soft = true)

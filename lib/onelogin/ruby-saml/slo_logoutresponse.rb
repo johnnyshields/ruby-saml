@@ -22,7 +22,7 @@ module OneLogin
       #
       def initialize
         @uuid = OneLogin::RubySaml::Utils.uuid
-        super
+        super()
       end
 
       def response_id
