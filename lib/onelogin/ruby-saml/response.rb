@@ -71,6 +71,8 @@ module OneLogin
         if assertion_encrypted?
           @decrypted_document = generate_decrypted_document
         end
+
+        super
       end
 
       # Validates the SAML Response with the default values (soft = true)
@@ -934,13 +936,13 @@ module OneLogin
             "/p:Response/a:Assertion[@ID=$id]#{subelt}",
             { "p" => PROTOCOL, "a" => ASSERTION },
             { 'id' => doc.signed_element_id }
-        )
+          )
         node ||= REXML::XPath.first(
             doc,
             "/p:Response[@ID=$id]/a:Assertion#{subelt}",
             { "p" => PROTOCOL, "a" => ASSERTION },
             { 'id' => doc.signed_element_id }
-        )
+          )
         node
       end
 
@@ -956,13 +958,13 @@ module OneLogin
             "/p:Response/a:Assertion[@ID=$id]#{subelt}",
             { "p" => PROTOCOL, "a" => ASSERTION },
             { 'id' => doc.signed_element_id }
-        )
+          )
         node.concat(REXML::XPath.match(
             doc,
             "/p:Response[@ID=$id]/a:Assertion#{subelt}",
             { "p" => PROTOCOL, "a" => ASSERTION },
             { 'id' => doc.signed_element_id }
-        ))
+          ))
       end
 
       # Generates the decrypted_document

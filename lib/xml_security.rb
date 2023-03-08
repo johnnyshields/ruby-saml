@@ -51,14 +51,14 @@ module XMLSecurity
       end
 
       case algorithm
-        when "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+      when "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
              "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"
-          Nokogiri::XML::XML_C14N_1_0
-        when "http://www.w3.org/2006/12/xml-c14n11",
+        Nokogiri::XML::XML_C14N_1_0
+      when "http://www.w3.org/2006/12/xml-c14n11",
              "http://www.w3.org/2006/12/xml-c14n11#WithComments"
-          Nokogiri::XML::XML_C14N_1_1
-        else
-          Nokogiri::XML::XML_C14N_EXCLUSIVE_1_0
+        Nokogiri::XML::XML_C14N_1_1
+      else
+        Nokogiri::XML::XML_C14N_EXCLUSIVE_1_0
       end
     end
 
@@ -274,7 +274,7 @@ module XMLSecurity
           @working_copy,
           "//ds:Signature",
           {"ds"=>DSIG}
-      )
+        )
 
       # signature method
       sig_alg_value = REXML::XPath.first(
@@ -365,15 +365,15 @@ module XMLSecurity
         if transform_element.attributes && transform_element.attributes["Algorithm"]
           algorithm = transform_element.attributes["Algorithm"]
           case algorithm
-            when "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+          when "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
                  "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"
-              canon_algorithm = Nokogiri::XML::XML_C14N_1_0
-            when "http://www.w3.org/2006/12/xml-c14n11",
+            canon_algorithm = Nokogiri::XML::XML_C14N_1_0
+          when "http://www.w3.org/2006/12/xml-c14n11",
                  "http://www.w3.org/2006/12/xml-c14n11#WithComments"
-              canon_algorithm = Nokogiri::XML::XML_C14N_1_1
-            when "http://www.w3.org/2001/10/xml-exc-c14n#",
+            canon_algorithm = Nokogiri::XML::XML_C14N_1_1
+          when "http://www.w3.org/2001/10/xml-exc-c14n#",
                  "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"
-              canon_algorithm = Nokogiri::XML::XML_C14N_EXCLUSIVE_1_0
+            canon_algorithm = Nokogiri::XML::XML_C14N_EXCLUSIVE_1_0
           end
         end
       end

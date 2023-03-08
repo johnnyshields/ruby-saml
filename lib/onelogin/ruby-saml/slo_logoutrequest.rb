@@ -47,6 +47,7 @@ module OneLogin
 
         @request = decode_raw_saml(request, settings)
         @document = REXML::Document.new(@request)
+        super
       end
 
       def request_id
