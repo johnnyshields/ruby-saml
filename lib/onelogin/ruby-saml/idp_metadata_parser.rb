@@ -250,14 +250,14 @@ module OneLogin
         #
         def valid_until
           root = @idpsso_descriptor.root
-          root.attributes['validUntil'] if root && root.attributes
+          root.attributes['validUntil'] if root&.attributes
         end
 
         # @return [String|nil] 'cacheDuration' attribute of metadata
         #
         def cache_duration
           root = @idpsso_descriptor.root
-          root.attributes['cacheDuration'] if root && root.attributes
+          root.attributes['cacheDuration'] if root&.attributes
         end
 
         # @param name_id_priority [String|Array<String>] The prioritized list of NameIDFormat values to select. Will select first value if nil.
@@ -308,7 +308,7 @@ module OneLogin
             "md:SingleSignOnService[@Binding=\"#{binding}\"]/@Location",
             SamlMetadata::NAMESPACE
           )
-          node.value if node
+          node&.value
         end
 
         # @param binding_priority [String|Array<String>] The prioritized list of Binding values to select. Will select first value if nil.
@@ -323,7 +323,7 @@ module OneLogin
             "md:SingleLogoutService[@Binding=\"#{binding}\"]/@Location",
             SamlMetadata::NAMESPACE
           )
-          node.value if node
+          node&.value
         end
 
         # @param binding_priority [String|Array<String>] The prioritized list of Binding values to select. Will select first value if nil.
@@ -338,7 +338,7 @@ module OneLogin
             "md:SingleLogoutService[@Binding=\"#{binding}\"]/@ResponseLocation",
             SamlMetadata::NAMESPACE
           )
-          node.value if node
+          node&.value
         end
 
         # @return [String|nil] Unformatted Certificate if exists

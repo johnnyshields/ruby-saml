@@ -95,7 +95,7 @@ module OneLogin
       #
       def name_id_format
         @name_id_format ||=
-          if name_id_node && name_id_node.attribute("Format")
+          if name_id_node&.attribute("Format")
             name_id_node.attribute("Format").value
           end
       end
@@ -106,7 +106,7 @@ module OneLogin
       #
       def name_id_spnamequalifier
         @name_id_spnamequalifier ||=
-          if name_id_node && name_id_node.attribute("SPNameQualifier")
+          if name_id_node&.attribute("SPNameQualifier")
             name_id_node.attribute("SPNameQualifier").value
           end
       end
@@ -115,7 +115,7 @@ module OneLogin
       #
       def name_id_namequalifier
         @name_id_namequalifier ||=
-          if name_id_node && name_id_node.attribute("NameQualifier")
+          if name_id_node&.attribute("NameQualifier")
             name_id_node.attribute("NameQualifier").value
           end
       end
@@ -220,7 +220,7 @@ module OneLogin
           )
           if nodes.size == 1
             node = nodes[0]
-            code = node.attributes["Value"] if node && node.attributes
+            code = node.attributes["Value"] if node&.attributes
 
             unless code == "urn:oasis:names:tc:SAML:2.0:status:Success"
               nodes = REXML::XPath.match(

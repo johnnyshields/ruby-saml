@@ -96,7 +96,7 @@ module XMLSecurity
     attr_writer :uuid
 
     def uuid
-      @uuid ||= document.root&.attributes['ID']
+      @uuid ||= document.root&.attributes&.[]('ID')
     end
 
     # <Signature>

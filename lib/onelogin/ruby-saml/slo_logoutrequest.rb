@@ -78,7 +78,7 @@ module OneLogin
       def name_id_format
         @name_id_node ||= REXML::XPath.first(document, "/p:LogoutRequest/a:NameID", { "p" => PROTOCOL, "a" => ASSERTION })
         @name_id_format ||=
-          if @name_id_node && @name_id_node.attribute("Format")
+          if @name_id_node&.attribute("Format")
             @name_id_node.attribute("Format").value
           end
       end
