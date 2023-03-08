@@ -42,7 +42,7 @@ module OneLogin
 
       # fetch IdP descriptors from a metadata document
       def self.get_idps(metadata_document, only_entity_id=nil)
-        path = "//md:EntityDescriptor#{only_entity_id && '[@entityID="' + only_entity_id + '"]'}/md:IDPSSODescriptor"
+        path = "//md:EntityDescriptor#{('[@entityID="' + only_entity_id + '"]') if only_entity_id}/md:IDPSSODescriptor"
         REXML::XPath.match(
           metadata_document,
           path,

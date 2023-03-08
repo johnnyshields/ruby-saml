@@ -10,8 +10,8 @@ module OneLogin
 
       def self.logger
         @logger ||= begin
-          (defined?(::Rails) && Rails.respond_to?(:logger) && Rails.logger) ||
-            DEFAULT_LOGGER
+          logger = Rails.logger if defined?(::Rails) && Rails.respond_to?(:logger)
+          logger ||= DEFAULT_LOGGER
         end
       end
 
@@ -20,15 +20,15 @@ module OneLogin
       end
 
       def self.debug(message)
-        return if !!ENV["ruby-saml/testing"]
+        return if ENV["ruby-saml/testing"]
 
-        logger.debug message
+        logger.debug(message)
       end
 
       def self.info(message)
-        return if !!ENV["ruby-saml/testing"]
+        return if ENV["ruby-saml/testing"]
 
-        logger.info message
+        logger.info(message)
       end
     end
   end

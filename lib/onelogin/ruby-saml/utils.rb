@@ -86,9 +86,9 @@ module OneLogin
 
         if cert.scan(/BEGIN CERTIFICATE/).length > 1
           formatted_cert = []
-          cert.scan(/-{5}BEGIN CERTIFICATE-{5}[\n\r]?.*?-{5}END CERTIFICATE-{5}[\n\r]?/m) {|c|
+          cert.scan(/-{5}BEGIN CERTIFICATE-{5}[\n\r]?.*?-{5}END CERTIFICATE-{5}[\n\r]?/m) do |c|
             formatted_cert << format_cert(c)
-          }
+          end
           formatted_cert.join("\n")
         else
           cert = cert.gsub(/\-{5}\s?(BEGIN|END) CERTIFICATE\s?\-{5}/, "")
@@ -305,9 +305,9 @@ module OneLogin
           when 'http://www.w3.org/2001/04/xmlenc#aes128-cbc' then cipher = OpenSSL::Cipher.new('AES-128-CBC').decrypt
           when 'http://www.w3.org/2001/04/xmlenc#aes192-cbc' then cipher = OpenSSL::Cipher.new('AES-192-CBC').decrypt
           when 'http://www.w3.org/2001/04/xmlenc#aes256-cbc' then cipher = OpenSSL::Cipher.new('AES-256-CBC').decrypt
-          when 'http://www.w3.org/2009/xmlenc11#aes128-gcm' then auth_cipher = OpenSSL::Cipher::AES.new(128, :GCM).decrypt
-          when 'http://www.w3.org/2009/xmlenc11#aes192-gcm' then auth_cipher = OpenSSL::Cipher::AES.new(192, :GCM).decrypt
-          when 'http://www.w3.org/2009/xmlenc11#aes256-gcm' then auth_cipher = OpenSSL::Cipher::AES.new(256, :GCM).decrypt
+          when 'http://www.w3.org/2009/xmlenc11#aes128-gcm' then auth_cipher = OpenSSL::Cipher.new('aes-128-gcm').decrypt
+          when 'http://www.w3.org/2009/xmlenc11#aes192-gcm' then auth_cipher = OpenSSL::Cipher.new('aes-192-gcm').decrypt
+          when 'http://www.w3.org/2009/xmlenc11#aes256-gcm' then auth_cipher = OpenSSL::Cipher.new('aes-256-gcm').decrypt
           when 'http://www.w3.org/2001/04/xmlenc#rsa-1_5' then rsa = symmetric_key
           when 'http://www.w3.org/2001/04/xmlenc#rsa-oaep-mgf1p' then oaep = symmetric_key
         end
@@ -315,11 +315,15 @@ module OneLogin
         if cipher
           iv_len = cipher.iv_len
           data = cipher_text[iv_len..-1]
-          cipher.padding, cipher.key, cipher.iv = 0, symmetric_key, cipher_text[0..iv_len-1]
+          cipher.padding = 0
+          cipher.key = symmetric_key
+          cipher.iv = cipher_text[0..iv_len-1]
           assertion_plaintext = cipher.update(data)
           assertion_plaintext << cipher.final
         elsif auth_cipher
-          iv_len, text_len, tag_len = auth_cipher.iv_len, cipher_text.length, 16
+          iv_len = auth_cipher.iv_len
+          text_len = cipher_text.length
+          tag_len = 16
           data = cipher_text[iv_len..text_len-1-tag_len]
           auth_cipher.padding = 0
           auth_cipher.key = symmetric_key
@@ -357,8 +361,8 @@ module OneLogin
         if dest_uri.scheme.nil? || acs_uri.scheme.nil? || dest_uri.host.nil? || acs_uri.host.nil?
           raise URI::InvalidURIError
         else
-          dest_uri.scheme.downcase == acs_uri.scheme.downcase &&
-            dest_uri.host.downcase == acs_uri.host.downcase &&
+          dest_uri.scheme.casecmp(acs_uri.scheme).zero? &&
+            dest_uri.host.casecmp(acs_uri.host).zero? &&
             dest_uri.path == acs_uri.path &&
             dest_uri.query == acs_uri.query
         end

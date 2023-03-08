@@ -38,7 +38,7 @@ module OneLogin
       AVAILABLE_OPTIONS = [
         :allowed_clock_drift, :check_duplicated_attributes, :matches_request_id, :settings, :skip_audience, :skip_authnstatement, :skip_conditions,
         :skip_destination, :skip_recipient_check, :skip_subject_confirmation
-      ]
+      ].freeze
       # TODO: Update the comment on initialize to describe every option
 
       # Constructs the SAML Response. A Response Object that is an extension of the SamlMessage class.
@@ -165,7 +165,7 @@ module OneLogin
                 raise ValidationError.new("Found an Attribute element with duplicated Name")
               end
 
-              values = node.elements.collect{|e|
+              values = node.elements.collect  do |e|
                 if e.elements.nil? || e.elements.size == 0
                   # SAMLCore requires that nil AttributeValues MUST contain xsi:nil XML attribute set to "true" or "1"
                   # otherwise the value is to be regarded as empty.
@@ -180,7 +180,7 @@ module OneLogin
                     "#{base_path}#{Utils.element_text(n)}"
                   end
                 end
-              }
+              end
 
               attributes.add(name, values.flatten)
             end
@@ -792,7 +792,7 @@ module OneLogin
           break
         end
 
-        if !valid_subject_confirmation
+        unless valid_subject_confirmation
           error_msg = "A valid SubjectConfirmation was not found on this Response"
           return append_error(error_msg)
         end

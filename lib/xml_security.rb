@@ -96,9 +96,7 @@ module XMLSecurity
     attr_writer :uuid
 
     def uuid
-      @uuid ||= begin
-        document.root.nil? ? nil : document.root.attributes['ID']
-      end
+      @uuid ||= document.root&.attributes['ID']
     end
 
     # <Signature>
@@ -136,7 +134,7 @@ module XMLSecurity
       c14element.add_element("ec:InclusiveNamespaces", {"xmlns:ec" => C14N, "PrefixList" => INC_PREFIX_LIST})
 
       digest_method_element = reference_element.add_element("ds:DigestMethod", {"Algorithm" => digest_method})
-      inclusive_namespaces = INC_PREFIX_LIST.split(" ")
+      inclusive_namespaces = INC_PREFIX_LIST.split
       canon_doc = noko.canonicalize(canon_algorithm(C14N), inclusive_namespaces)
       reference_element.add_element("ds:DigestValue").text = compute_digest(canon_doc, algorithm(digest_method_element))
 
@@ -409,7 +407,7 @@ module XMLSecurity
       return unless element
 
       prefix_list = element.attributes.get_attribute("PrefixList").value
-      prefix_list.split(" ")
+      prefix_list.split
     end
 
   end
