@@ -27,7 +27,7 @@ module OneLogin
       #
       def self.schema
         @@mutex.synchronize do
-          Dir.chdir(File.expand_path("../../../schemas", __FILE__)) do
+          Dir.chdir(File.expand_path('../../schemas', __dir__)) do
             ::Nokogiri::XML::Schema(File.read("saml-schema-protocol-2.0.xsd"))
           end
         end
@@ -98,7 +98,7 @@ module OneLogin
         decoded = decode(saml)
         begin
           inflate(decoded)
-        rescue
+        rescue StandardError
           decoded
         end
       end
@@ -127,7 +127,7 @@ module OneLogin
       # @return [String] The encoded string
       #
       def encode(string)
-        if Base64.respond_to?('strict_encode64')
+        if Base64.respond_to?(:strict_encode64)
           Base64.strict_encode64(string)
         else
           Base64.encode64(string).gsub(/\n/, "")

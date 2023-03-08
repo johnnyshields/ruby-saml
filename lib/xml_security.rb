@@ -37,7 +37,7 @@ require "onelogin/ruby-saml/error_handling"
 module XMLSecurity
 
   class BaseDocument < REXML::Document
-    REXML::Document::entity_expansion_limit = 0
+    REXML::Document.entity_expansion_limit = 0
 
     C14N            = "http://www.w3.org/2001/10/xml-exc-c14n#"
     DSIG            = "http://www.w3.org/2000/09/xmldsig#"
@@ -68,7 +68,7 @@ module XMLSecurity
         algorithm = element.attribute("Algorithm").value
       end
 
-      algorithm = algorithm && algorithm =~ /(rsa-)?sha(.*?)$/i && $2.to_i
+      algorithm = algorithm && algorithm =~ /(rsa-)?sha(.*?)$/i && ::Regexp.last_match(2).to_i
 
       case algorithm
       when 256 then OpenSSL::Digest::SHA256
@@ -164,7 +164,7 @@ module XMLSecurity
       issuer_element = elements["//saml:Issuer"]
       if issuer_element
         root.insert_after(issuer_element, signature_element)
-      elsif first_child = root.children[0]
+      elsif (first_child = root.children[0])
         root.insert_before(first_child, signature_element)
       else
         root.add_element(signature_element)
@@ -264,7 +264,6 @@ module XMLSecurity
     end
 
     def validate_signature(base64_cert, soft = true)
-
       document = Nokogiri::XML(self.to_s) do |config|
         config.options = XMLSecurity::BaseDocument::NOKOGIRI_OPTIONS
       end
@@ -407,12 +406,10 @@ module XMLSecurity
         "//ec:InclusiveNamespaces",
         { "ec" => C14N }
       )
-      if element
-        prefix_list = element.attributes.get_attribute("PrefixList").value
-        prefix_list.split(" ")
-      else
-        nil
-      end
+      return unless element
+
+      prefix_list = element.attributes.get_attribute("PrefixList").value
+      prefix_list.split(" ")
     end
 
   end

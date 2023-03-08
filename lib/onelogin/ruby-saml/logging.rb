@@ -6,7 +6,7 @@ require 'logger'
 module OneLogin
   module RubySaml
     class Logging
-      DEFAULT_LOGGER = ::Logger.new(STDOUT)
+      DEFAULT_LOGGER = ::Logger.new($stdout)
 
       def self.logger
         @logger ||= begin
@@ -15,8 +15,8 @@ module OneLogin
         end
       end
 
-      def self.logger=(logger)
-        @logger = logger
+      class << self
+        attr_writer :logger
       end
 
       def self.debug(message)

@@ -261,7 +261,7 @@ module OneLogin
         idp_cert_fingerprint_algorithm: XMLSecurity::Document::SHA1,
         compress_request: true,
         compress_response: true,
-        message_max_bytesize: 250000,
+        message_max_bytesize: 250_000,
         soft: true,
         double_quote_xml_attribute_values: false,
         security: {

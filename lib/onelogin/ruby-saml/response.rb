@@ -166,10 +166,10 @@ module OneLogin
               end
 
               values = node.elements.collect{|e|
-                if (e.elements.nil? || e.elements.size == 0)
+                if e.elements.nil? || e.elements.size == 0
                   # SAMLCore requires that nil AttributeValues MUST contain xsi:nil XML attribute set to "true" or "1"
                   # otherwise the value is to be regarded as empty.
-                  ["true", "1"].include?(e.attributes['xsi:nil']) ? nil : Utils.element_text(e)
+                  %w[true 1].include?(e.attributes['xsi:nil']) ? nil : Utils.element_text(e)
                 # explicitly support saml2:NameID with saml2:NameQualifier if supplied in attributes
                 # this is useful for allowing eduPersonTargetedId to be passed as an opaque identifier to use to
                 # identify the subject in an SP rather than email or other less opaque attributes
@@ -348,7 +348,7 @@ module OneLogin
       # @return [Boolean] True if the SAML Response contains an EncryptedAssertion element
       #
       def assertion_encrypted?
-        ! REXML::XPath.first(
+        !REXML::XPath.first(
           document,
           "(/p:Response/EncryptedAssertion/)|(/p:Response/a:EncryptedAssertion/)",
           { "p" => PROTOCOL, "a" => ASSERTION }
@@ -622,7 +622,7 @@ module OneLogin
         end
 
         unless audiences.include? settings.sp_entity_id
-          s = audiences.count > 1 ? 's' : '';
+          s = audiences.count > 1 ? 's' : ''
           error_msg = "Invalid Audience#{s}. The audience#{s} #{audiences.join(',')}, did not match the expected audience #{settings.sp_entity_id}"
           return append_error(error_msg)
         end
@@ -895,7 +895,6 @@ module OneLogin
               @errors = old_errors
               break
             end
-
           end
           if expired
             error_msg = "IdP x509 certificate expired"
@@ -958,7 +957,7 @@ module OneLogin
             { "p" => PROTOCOL, "a" => ASSERTION },
             { 'id' => doc.signed_element_id }
         )
-        node.concat( REXML::XPath.match(
+        node.concat(REXML::XPath.match(
             doc,
             "/p:Response[@ID=$id]/a:Assertion#{subelt}",
             { "p" => PROTOCOL, "a" => ASSERTION },

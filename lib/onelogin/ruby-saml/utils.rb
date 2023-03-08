@@ -13,7 +13,7 @@ module OneLogin
                    redirect: "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" }.freeze
       DSIG = "http://www.w3.org/2000/09/xmldsig#"
       XENC = "http://www.w3.org/2001/04/xmlenc#"
-      DURATION_FORMAT = %r(^
+      DURATION_FORMAT = %r{^
         (-?)P                       # 1: Duration sign
         (?:
           (?:(\d+)Y)?               # 2: Years
@@ -27,7 +27,7 @@ module OneLogin
           |
           (\d+)W                    # 8: Weeks
         )
-      $)x.freeze
+      $}x.freeze
       UUID_PREFIX = +'_'
 
       # Checks if the x509 cert provided is expired
@@ -55,7 +55,7 @@ module OneLogin
         matches = duration.match(DURATION_FORMAT)
 
         if matches.nil?
-          raise Exception.new("Invalid ISO 8601 duration")
+          raise StandardError.new("Invalid ISO 8601 duration")
         end
 
         sign = matches[1] == '-' ? -1 : 1
@@ -187,7 +187,7 @@ module OneLogin
         CGI.escape(param).tap do |escaped|
           next unless lowercase_url_encoding
 
-          escaped.gsub!(/%[A-Fa-f0-9]{2}/) { |match| match.downcase }
+          escaped.gsub!(/%[A-Fa-f0-9]{2}/, &:downcase)
         end
       end
 

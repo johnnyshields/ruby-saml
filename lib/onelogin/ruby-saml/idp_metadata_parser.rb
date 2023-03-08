@@ -197,7 +197,7 @@ module OneLogin
       # @raise [HttpError] Failure to fetch remote IdP metadata
       def get_idp_metadata(url, validate_cert)
         uri = URI.parse(url)
-        raise ArgumentError.new("url must begin with http or https") unless /^https?/ =~ uri.scheme
+        raise ArgumentError.new("url must begin with http or https") unless /^https?/.match?(uri.scheme)
         http = Net::HTTP.new(uri.host, uri.port)
 
         if uri.scheme == "https"
@@ -394,7 +394,7 @@ module OneLogin
         #
         def attribute_names
           nodes = REXML::XPath.match(
-            @idpsso_descriptor  ,
+            @idpsso_descriptor,
             "saml:Attribute/@Name",
             SamlMetadata::NAMESPACE
           )
@@ -404,8 +404,8 @@ module OneLogin
         def merge_certificates_into(parsed_metadata)
           if (certificates.size == 1 &&
               (certificates_has_one('signing') || certificates_has_one('encryption'))) ||
-              (certificates_has_one('signing') && certificates_has_one('encryption') &&
-              certificates["signing"][0] == certificates["encryption"][0])
+             (certificates_has_one('signing') && certificates_has_one('encryption') &&
+             certificates["signing"][0] == certificates["encryption"][0])
 
             parsed_metadata[:idp_cert] = if certificates.key?("signing")
                                            certificates["signing"][0]
