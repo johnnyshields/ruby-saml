@@ -28,7 +28,8 @@ module RubySaml
       add_sp_certificates(sp_sso, settings)
       add_sp_service_elements(sp_sso, settings)
       add_extras(root, settings)
-      embed_signature(meta_doc, settings)
+      signed_doc = embed_signature(meta_doc, settings)
+      meta_doc = signed_doc if signed_doc
       output_xml(meta_doc, pretty_print)
     end
 

@@ -246,12 +246,14 @@ class XmlTest < Minitest::Test
       it "sign an AuthNRequest" do
         request = RubySaml::Authrequest.new.create_authentication_xml_doc(settings)
         request.sign_document(ruby_saml_key, ruby_saml_cert)
+
         # verify our signature
         signed_doc = RubySaml::XML::SignedDocument.new(request.to_s)
         assert signed_doc.validate_document(ruby_saml_cert_fingerprint, false)
 
         request2 = RubySaml::Authrequest.new.create_authentication_xml_doc(settings)
         request2.sign_document(ruby_saml_key, ruby_saml_cert_text)
+
         # verify our signature
         signed_doc2 = RubySaml::XML::SignedDocument.new(request2.to_s)
         assert signed_doc2.validate_document(ruby_saml_cert_fingerprint, false)

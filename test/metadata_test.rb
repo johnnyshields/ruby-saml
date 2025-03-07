@@ -20,7 +20,7 @@ class MetadataTest < Minitest::Test
     it "generates Pretty Print Service Provider Metadata" do
       xml_text = RubySaml::Metadata.new.generate(settings, true)
       # assert correct xml declaration
-      start = "<?xml version='1.0' encoding='UTF-8'?>\n<md:EntityDescriptor"
+      start = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<md:EntityDescriptor"
       assert_equal xml_text[0..start.length-1], start
 
       assert_equal "https://example.com", xml_doc.at_xpath("//md:EntityDescriptor", {"md" => "urn:oasis:names:tc:SAML:2.0:metadata"})["entityID"]
@@ -58,7 +58,7 @@ class MetadataTest < Minitest::Test
     end
 
     it "generates Service Provider Metadata with single logout service" do
-      start = "<?xml version='1.0' encoding='UTF-8'?><md:EntityDescriptor"
+      start = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<md:EntityDescriptor"
       assert_equal xml_text[0..start.length-1], start
 
       assert_equal "https://example.com", xml_doc.at_xpath("//md:EntityDescriptor", {"md" => "urn:oasis:names:tc:SAML:2.0:metadata"})["entityID"]
@@ -79,7 +79,7 @@ class MetadataTest < Minitest::Test
       valid_until = Time.now + 172800
       cache_duration = 604800
       xml_metadata = RubySaml::Metadata.new.generate(settings, false, valid_until, cache_duration)
-      start = "<?xml version='1.0' encoding='UTF-8'?><md:EntityDescriptor"
+      start = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<md:EntityDescriptor"
       assert_equal xml_metadata[0..start.length-1], start
 
       doc_metadata = Nokogiri::XML(xml_metadata)
@@ -252,8 +252,8 @@ class MetadataTest < Minitest::Test
     end
 
     describe "when attribute service is configured with multiple attribute values" do
-      let(:attr_svc)  { xml_doc.at_xpath("//md:AttributeConsumingService", {"md" => "urn:oasis:names:tc:SAML:2.0:metadata"}) }
-      let(:req_attr)  { xml_doc.at_xpath("//md:RequestedAttribute", {"md" => "urn:oasis:names:tc:SAML:2.0:metadata"}) }
+      let(:attr_svc) { xml_doc.at_xpath("//md:AttributeConsumingService", {"md" => "urn:oasis:names:tc:SAML:2.0:metadata"}) }
+      let(:req_attr) { xml_doc.at_xpath("//md:RequestedAttribute", {"md" => "urn:oasis:names:tc:SAML:2.0:metadata"}) }
 
       before do
         settings.attribute_consuming_service.configure do
@@ -333,11 +333,12 @@ class MetadataTest < Minitest::Test
         @cert, @pkey = CertificateHelper.generate_pair(:rsa)
         settings.certificate, settings.private_key = [@cert, @pkey].map(&:to_pem)
         @fingerprint = OpenSSL::Digest.new('SHA256', @cert.to_der).to_s
+        signed_metadata = RubySaml::XML::SignedDocument.new(xml_text)
 
         assert_match(signature_value_matcher, xml_text)
         assert_match(signature_method_matcher(:rsa, :sha256), xml_text)
         assert_match(digest_method_matcher(:sha256), xml_text)
-        assert(RubySaml::XML::SignedDocumentValidator.validate_document(xml_text, @fingerprint, soft: false))
+        assert(signed_metadata.validate_document(@fingerprint, false))
         assert(validate_xml!(xml_text, "saml-schema-metadata-2.0.xsd"))
       end
 
@@ -352,11 +353,13 @@ class MetadataTest < Minitest::Test
           end
 
           it "creates a signed metadata" do
+            signed_metadata = RubySaml::XML::SignedDocument.new(xml_text)
+
             assert_match(signature_value_matcher, xml_text)
             assert_match(signature_method_matcher(sp_key_algo, sp_hash_algo), xml_text)
             assert_match(digest_method_matcher(sp_hash_algo), xml_text)
 
-            assert RubySaml::XML::SignedDocumentValidator.validate_document(xml_text, @fingerprint, soft: false)
+            assert signed_metadata.validate_document(@fingerprint, false)
             assert validate_xml!(xml_text, "saml-schema-metadata-2.0.xsd")
           end
 
@@ -364,21 +367,23 @@ class MetadataTest < Minitest::Test
             it 'using mixed signature and digest methods (signature SHA256)' do
               # RSA is ignored here; only the hash sp_key_algo is used
               settings.security[:signature_method] = RubySaml::XML::Crypto::RSA_SHA256
+              signed_metadata = RubySaml::XML::SignedDocument.new(xml_text)
 
               assert_match(signature_value_matcher, xml_text)
               assert_match(signature_method_matcher(sp_key_algo, :sha256), xml_text)
               assert_match(digest_method_matcher(sp_hash_algo), xml_text)
-              assert(RubySaml::XML::SignedDocumentValidator.validate_document(xml_text, @fingerprint, soft: false))
+              assert(signed_metadata.validate_document(@fingerprint, false))
               assert(validate_xml!(xml_text, "saml-schema-metadata-2.0.xsd"))
             end
 
             it 'using mixed signature and digest methods (digest SHA256)' do
               settings.security[:digest_method] = RubySaml::XML::Crypto::SHA256
+              signed_metadata = RubySaml::XML::SignedDocument.new(xml_text)
 
               assert_match(signature_value_matcher, xml_text)
               assert_match(signature_method_matcher(sp_key_algo, sp_hash_algo), xml_text)
               assert_match(digest_method_matcher(:sha256), xml_text)
-              assert(RubySaml::XML::SignedDocumentValidator.validate_document(xml_text, @fingerprint, soft: false))
+              assert(signed_metadata.validate_document(@fingerprint, false))
               assert(validate_xml!(xml_text, "saml-schema-metadata-2.0.xsd"))
             end
           end
@@ -424,15 +429,15 @@ class MetadataTest < Minitest::Test
 
             it "inserts signature as the first child of root element" do
               xml_text = subclass.new.generate(settings, false)
-              doc = Nokogiri::XML(xml_text)
-              first_child = doc.root.element_children.first
+              signed_metadata = RubySaml::XML::SignedDocument.new(xml_text)
+              first_child = xml_doc.root.element_children.first
 
               assert_equal first_child.namespace.prefix, 'ds'
               assert_equal first_child.name, 'Signature'
               assert_match(signature_value_matcher, xml_text)
               assert_match(signature_method_matcher(sp_key_algo, sp_hash_algo), xml_text)
               assert_match(digest_method_matcher(sp_hash_algo), xml_text)
-              assert(RubySaml::XML::SignedDocumentValidator.validate_document(xml_text, @fingerprint, soft: false))
+              assert signed_metadata.validate_document(@fingerprint, false)
               assert validate_xml!(xml_text, "saml-schema-metadata-2.0.xsd")
             end
           end
