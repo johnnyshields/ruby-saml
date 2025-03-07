@@ -90,7 +90,7 @@ class RequestTest < Minitest::Test
         unauth_url = unauth_req.create(settings)
 
         inflated = decode_saml_request_payload(unauth_url)
-        assert_match %r[ID='#{unauth_req.uuid}'], inflated
+        assert_match %r[ID="#{unauth_req.uuid}"], inflated
       end
     end
 
@@ -169,6 +169,7 @@ class RequestTest < Minitest::Test
           refute_match(/<ds:SignatureMethod/, inflated)
           refute_match(/<ds:DigestMethod/, inflated)
 
+          puts unauth_req_doc.inspect
           inflated = unauth_req.sign_document(unauth_req_doc, settings).to_s
 
           assert_match(signature_value_matcher, inflated)

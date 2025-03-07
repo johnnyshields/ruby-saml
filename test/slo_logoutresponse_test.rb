@@ -54,7 +54,7 @@ class SloLogoutresponseTest < Minitest::Test
       unauth_url = RubySaml::SloLogoutresponse.new.create(settings, logout_request.id)
 
       inflated = decode_saml_response_payload(unauth_url)
-      assert_match(/InResponseTo='_c0348950-935b-0131-1060-782bcb56fcaa'/, inflated)
+      assert_match(/InResponseTo="_c0348950-935b-0131-1060-782bcb56fcaa"/, inflated)
     end
 
     it "set a custom successful logout message on the response" do
@@ -69,7 +69,7 @@ class SloLogoutresponseTest < Minitest::Test
 
       inflated = decode_saml_response_payload(unauth_url)
       assert_match(/<samlp:StatusMessage>Custom Logout Message<\/samlp:StatusMessage>/, inflated)
-      assert_match(/<samlp:StatusCode Value='urn:oasis:names:tc:SAML:2.0:status:PartialLogout/, inflated)
+      assert_match(/<samlp:StatusCode Value="urn:oasis:names:tc:SAML:2\.0:status:PartialLogout/, inflated)
     end
 
     it "uses the response location when set" do
@@ -79,7 +79,7 @@ class SloLogoutresponseTest < Minitest::Test
       assert_match(/^http:\/\/unauth\.com\/logout\/return\?SAMLResponse=/, unauth_url)
 
       inflated = decode_saml_response_payload(unauth_url)
-      assert_match(/Destination='http:\/\/unauth.com\/logout\/return'/, inflated)
+      assert_match(/Destination="http:\/\/unauth\.com\/logout\/return"/, inflated)
     end
 
     describe "uuid" do

@@ -254,6 +254,7 @@ module RubySaml
             query_string: query_string
           )
           next unless valid
+
           if settings.security[:check_idp_cert_expiration] && RubySaml::Utils.is_cert_expired(signing_idp_cert)
             expired = true
           end
