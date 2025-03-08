@@ -23,8 +23,6 @@ module RubySaml
       #   <Object />
       # </Signature>
       def sign_document(document, private_key, certificate, signature_method = RubySaml::XML::Crypto::RSA_SHA256, digest_method = RubySaml::XML::Crypto::SHA256)
-        puts "XXX"
-
         noko = Nokogiri::XML(document.to_s) do |config|
           config.options = RubySaml::XML::BaseDocument::NOKOGIRI_OPTIONS
         end
@@ -104,23 +102,15 @@ module RubySaml
         certificate = OpenSSL::X509::Certificate.new(certificate) if certificate.is_a?(String)
         x509_cert_element.content = Base64.encode64(certificate.to_der).delete("\n")
 
-        puts signature_element.inspect
-
         # add the signature
         issuer_element = noko.at_xpath('//saml:Issuer', 'saml' => 'urn:oasis:names:tc:SAML:2.0:assertion')
         if issuer_element
-          puts "333"
           issuer_element.after(signature_element)
         elsif noko.root.children.any?
-          puts "222"
           noko.root.children.first.before(signature_element)
         else
-          puts "111"
           noko.root.add_child(signature_element)
         end
-
-        puts "JJJJJ"
-        puts noko.to_s.inspect
 
         noko
       end

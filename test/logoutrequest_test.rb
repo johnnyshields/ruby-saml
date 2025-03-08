@@ -169,7 +169,6 @@ class RequestTest < Minitest::Test
           refute_match(/<ds:SignatureMethod/, inflated)
           refute_match(/<ds:DigestMethod/, inflated)
 
-          puts unauth_req_doc.inspect
           inflated = unauth_req.sign_document(unauth_req_doc, settings).to_s
 
           assert_match(signature_value_matcher, inflated)
