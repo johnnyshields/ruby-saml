@@ -78,7 +78,7 @@ class RequestTest < Minitest::Test
         settings.idp_slo_service_url = "http://example.com?field=value"
 
         unauth_url = RubySaml::Logoutrequest.new.create(settings)
-        assert_match(/^http:\/\/example.com\?field=value&SAMLRequest/, unauth_url)
+        assert_match(/^http:\/\/example\.com\?field=value&SAMLRequest/, unauth_url)
       end
     end
 

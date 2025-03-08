@@ -36,7 +36,7 @@ class AuthrequestTest < Minitest::Test
       zstream.finish
       zstream.close
 
-      assert_match(/<samlp:AuthnRequest[^<]* Destination='http:\/\/example.com'/, inflated)
+      assert_match(/<samlp:AuthnRequest[^<]* Destination="http:\/\/example\.com"/, inflated)
     end
 
     it "create the SAMLRequest URL parameter without deflating" do
@@ -61,7 +61,7 @@ class AuthrequestTest < Minitest::Test
       zstream.finish
       zstream.close
 
-      assert_match(/<samlp:AuthnRequest[^<]* IsPassive='true'/, inflated)
+      assert_match(/<samlp:AuthnRequest[^<]* IsPassive="true"/, inflated)
     end
 
     it "create the SAMLRequest URL parameter with ProtocolBinding" do
@@ -76,7 +76,7 @@ class AuthrequestTest < Minitest::Test
       zstream.finish
       zstream.close
 
-      assert_match(/<samlp:AuthnRequest[^<]* ProtocolBinding='urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST'/, inflated)
+      assert_match(/<samlp:AuthnRequest[^<]* ProtocolBinding="urn:oasis:names:tc:SAML:2\.0:bindings:HTTP-POST"/, inflated)
     end
 
     it "create the SAMLRequest URL parameter with AttributeConsumingServiceIndex" do
@@ -90,7 +90,7 @@ class AuthrequestTest < Minitest::Test
       inflated = zstream.inflate(decoded)
       zstream.finish
       zstream.close
-      assert_match(/<samlp:AuthnRequest[^<]* AttributeConsumingServiceIndex='30'/, inflated)
+      assert_match(/<samlp:AuthnRequest[^<]* AttributeConsumingServiceIndex="30"/, inflated)
     end
 
     it "create the SAMLRequest URL parameter with ForceAuthn" do
@@ -104,7 +104,7 @@ class AuthrequestTest < Minitest::Test
       inflated = zstream.inflate(decoded)
       zstream.finish
       zstream.close
-      assert_match(/<samlp:AuthnRequest[^<]* ForceAuthn='true'/, inflated)
+      assert_match(/<samlp:AuthnRequest[^<]* ForceAuthn="true"/, inflated)
     end
 
     it "create the SAMLRequest URL parameter with NameID Format" do
@@ -118,8 +118,8 @@ class AuthrequestTest < Minitest::Test
       zstream.finish
       zstream.close
 
-      assert_match(/<samlp:NameIDPolicy[^<]* AllowCreate='true'/, inflated)
-      assert_match(/<samlp:NameIDPolicy[^<]* Format='urn:oasis:names:tc:SAML:2.0:nameid-format:transient'/, inflated)
+      assert_match(/<samlp:NameIDPolicy[^<]* AllowCreate="true"/, inflated)
+      assert_match(/<samlp:NameIDPolicy[^<]* Format="urn:oasis:names:tc:SAML:2\.0:nameid-format:transient"/, inflated)
     end
 
     it "create the SAMLRequest URL parameter with Subject" do
@@ -135,8 +135,8 @@ class AuthrequestTest < Minitest::Test
       zstream.close
 
       assert inflated.include?('<saml:Subject>')
-      assert inflated.include?("<saml:NameID Format='urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress'>testuser@example.com</saml:NameID>")
-      assert inflated.include?("<saml:SubjectConfirmation Method='urn:oasis:names:tc:SAML:2.0:cm:bearer'/>")
+      assert inflated.include?('<saml:NameID Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress">testuser@example.com</saml:NameID>')
+      assert inflated.include?('<saml:SubjectConfirmation Method="urn:oasis:names:tc:SAML:2.0:cm:bearer"/>')
     end
 
     it "accept extra parameters" do
@@ -224,7 +224,7 @@ class AuthrequestTest < Minitest::Test
       it "create the SAMLRequest parameter correctly" do
 
         auth_url = RubySaml::Authrequest.new.create(settings)
-        assert_match(/^http:\/\/example.com\?SAMLRequest/, auth_url)
+        assert_match(/^http:\/\/example\.com\?SAMLRequest/, auth_url)
       end
     end
 
@@ -233,7 +233,7 @@ class AuthrequestTest < Minitest::Test
         settings.idp_sso_service_url = "http://example.com?field=value"
 
         auth_url = RubySaml::Authrequest.new.create(settings)
-        assert_match(/^http:\/\/example.com\?field=value&SAMLRequest/, auth_url)
+        assert_match(/^http:\/\/example\.com\?field=value&SAMLRequest/, auth_url)
       end
     end
 
@@ -253,7 +253,7 @@ class AuthrequestTest < Minitest::Test
     it "create the saml:AuthnContextClassRef with comparison exact" do
       settings.authn_context = 'secure/name/password/uri'
       auth_doc = RubySaml::Authrequest.new.create_authentication_xml_doc(settings)
-      assert_match(/<samlp:RequestedAuthnContext[\S ]+Comparison='exact'/, auth_doc.to_s)
+      assert_match(/<samlp:RequestedAuthnContext[\S ]+Comparison="exact"/, auth_doc.to_s)
       assert_match(/<saml:AuthnContextClassRef>secure\/name\/password\/uri<\/saml:AuthnContextClassRef>/, auth_doc.to_s)
     end
 
@@ -261,14 +261,14 @@ class AuthrequestTest < Minitest::Test
       settings.authn_context = 'secure/name/password/uri'
       settings.authn_context_comparison = 'minimun'
       auth_doc = RubySaml::Authrequest.new.create_authentication_xml_doc(settings)
-      assert_match(/<samlp:RequestedAuthnContext[\S ]+Comparison='minimun'/, auth_doc.to_s)
+      assert_match(/<samlp:RequestedAuthnContext[\S ]+Comparison="minimun"/, auth_doc.to_s)
       assert_match(/<saml:AuthnContextClassRef>secure\/name\/password\/uri<\/saml:AuthnContextClassRef>/, auth_doc.to_s)
     end
 
     it "create the saml:AuthnContextDeclRef element correctly" do
       settings.authn_context_decl_ref = 'urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport'
       auth_doc = RubySaml::Authrequest.new.create_authentication_xml_doc(settings)
-      assert_match(/<saml:AuthnContextDeclRef>urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport<\/saml:AuthnContextDeclRef>/, auth_doc.to_s)
+      assert_match(/<saml:AuthnContextDeclRef>urn:oasis:names:tc:SAML:2\.0:ac:classes:PasswordProtectedTransport<\/saml:AuthnContextDeclRef>/, auth_doc.to_s)
     end
 
     it "create the saml:AuthnContextClassRef element correctly" do
@@ -280,7 +280,7 @@ class AuthrequestTest < Minitest::Test
     it "create the saml:AuthnContextClassRef with comparison exact" do
       settings.authn_context = 'secure/name/password/uri'
       auth_doc = RubySaml::Authrequest.new.create_authentication_xml_doc(settings)
-      assert auth_doc.to_s =~ /<samlp:RequestedAuthnContext[\S ]+Comparison='exact'/
+      assert auth_doc.to_s =~ /<samlp:RequestedAuthnContext[\S ]+Comparison="exact"/
       assert auth_doc.to_s =~ /<saml:AuthnContextClassRef>secure\/name\/password\/uri<\/saml:AuthnContextClassRef>/
     end
 
@@ -288,14 +288,14 @@ class AuthrequestTest < Minitest::Test
       settings.authn_context = 'secure/name/password/uri'
       settings.authn_context_comparison = 'minimun'
       auth_doc = RubySaml::Authrequest.new.create_authentication_xml_doc(settings)
-      assert auth_doc.to_s =~ /<samlp:RequestedAuthnContext[\S ]+Comparison='minimun'/
+      assert auth_doc.to_s =~ /<samlp:RequestedAuthnContext[\S ]+Comparison="minimun"/
       assert auth_doc.to_s =~ /<saml:AuthnContextClassRef>secure\/name\/password\/uri<\/saml:AuthnContextClassRef>/
     end
 
     it "create the saml:AuthnContextDeclRef element correctly" do
       settings.authn_context_decl_ref = 'urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport'
       auth_doc = RubySaml::Authrequest.new.create_authentication_xml_doc(settings)
-      assert auth_doc.to_s =~ /<saml:AuthnContextDeclRef>urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport<\/saml:AuthnContextDeclRef>/
+      assert auth_doc.to_s =~ /<saml:AuthnContextDeclRef>urn:oasis:names:tc:SAML:2\.0:ac:classes:PasswordProtectedTransport<\/saml:AuthnContextDeclRef>/
     end
 
     it "create multiple saml:AuthnContextDeclRef elements correctly " do
