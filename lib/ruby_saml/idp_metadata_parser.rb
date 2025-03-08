@@ -38,10 +38,9 @@ module RubySaml
     attr_reader :options
 
     # fetch IdP descriptors from a metadata document
-    def self.get_idps(metadata_document, only_entity_id = nil)
+    def self.get_idps(noko_document, only_entity_id = nil)
       path = "//md:EntityDescriptor#{"[@entityID=\"#{only_entity_id}\"]" if only_entity_id}/md:IDPSSODescriptor"
-      doc = Nokogiri::XML(metadata_document)
-      doc.xpath(path, SamlMetadata::NAMESPACE)
+      noko_document.xpath(path, SamlMetadata::NAMESPACE)
     end
 
     # Parse the Identity Provider metadata and update the settings with the
@@ -186,7 +185,7 @@ module RubySaml
         raise ArgumentError.new("idp_metadata must contain an IDPSSODescriptor element")
       end
 
-      idpsso_descriptors.map { |id| IdpMetadata.new(id, id.parent['entityID']) }
+      idpsso_descriptors.map { |idpsso| IdpMetadata.new(idpsso, idpsso.parent['entityID']) }
     end
 
     # Retrieve the remote IdP metadata from the URL or a cached copy.
@@ -228,6 +227,8 @@ module RubySaml
     class IdpMetadata
       attr_reader :idpsso_descriptor, :entity_id
 
+      # TODO: This constructor should take noko_document, noko_idpsso_descriptor as its args
+      # Entity ID can be found from the noko_document root.
       def initialize(idpsso_descriptor, entity_id)
         @idpsso_descriptor = idpsso_descriptor
         @entity_id = entity_id
@@ -259,14 +260,14 @@ module RubySaml
       # @return [String|nil] 'validUntil' attribute of metadata
       #
       def valid_until
-        root = @idpsso_descriptor.root
+        root = @idpsso_descriptor.document.root
         root['validUntil'] if root
       end
 
       # @return [String|nil] 'cacheDuration' attribute of metadata
       #
       def cache_duration
-        root = @idpsso_descriptor.root
+        root = @idpsso_descriptor.document.root
         root['cacheDuration'] if root
       end
 
@@ -365,14 +366,14 @@ module RubySaml
           unless signing_nodes.empty?
             certs['signing'] = []
             signing_nodes.each do |cert_node|
-              certs['signing'] << RubySaml::Utils.element_text(cert_node)
+              certs['signing'] << cert_node.content
             end
           end
 
           unless encryption_nodes.empty?
             certs['encryption'] = []
             encryption_nodes.each do |cert_node|
-              certs['encryption'] << RubySaml::Utils.element_text(cert_node)
+              certs['encryption'] << cert_node.content
             end
           end
           certs
