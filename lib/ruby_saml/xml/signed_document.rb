@@ -182,11 +182,14 @@ module RubySaml
       def validate_signature(base64_cert, soft = true)
         cache_referenced_xml(soft) unless @processed
 
+        return append_error('Cert is missing', soft) if base64_cert.nil?
         return append_error('No Signature Hash Algorithm Method found', soft) if @signature_hash_algorithm.nil?
         return append_error('No Signature node found', soft) if @signature.nil?
         return append_error('No canonized SignedInfo ', soft) if @cached_signed_info.nil?
         return append_error('No Reference node found', soft) if @ref.nil?
         return append_error('No referenced XML', soft) if @referenced_xml.nil?
+
+        puts '111111'
 
         # get certificate object
         cert_text = Base64.decode64(base64_cert)
@@ -206,6 +209,10 @@ module RubySaml
         )
         encoded_digest_value_text = RubySaml::Utils.element_text(encoded_digest_value)
         digest_value = encoded_digest_value_text.nil? ? nil : Base64.decode64(encoded_digest_value_text)
+
+        puts "digest_value: #{digest_value.bytes}"
+        puts "hash: #{hash.bytes}"
+        puts "soft: #{soft}"
 
         # Compare the computed "hash" with the "signed" hash
         unless hash && hash == digest_value
