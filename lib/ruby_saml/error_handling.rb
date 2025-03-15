@@ -12,6 +12,9 @@ module RubySaml
     def append_error(error_msg, soft_override = nil)
       @errors << error_msg
 
+      puts 'zzz'
+      puts "soft_override: #{soft_override.inspect}"
+      # puts "soft: #{soft}"
       unless soft_override.nil? ? soft : soft_override
         raise ValidationError.new(error_msg)
       end
