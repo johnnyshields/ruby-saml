@@ -894,7 +894,7 @@ module RubySaml
         # @errors << result if result.is_a?(String)
         # valid = result.is_a?(TrueClass)
         # if valid
-        if fingerprint && RubySaml::XML::SignedDocumentValidator.validate_document(doc.to_s, fingerprint, **opts)
+        if fingerprint && RubySaml::XML::SignedDocumentValidator.validate_document(doc.to_s, fingerprint, @errors, **opts)
           if settings.security[:check_idp_cert_expiration] && RubySaml::Utils.is_cert_expired(idp_cert)
             return append_error("IdP x509 certificate expired")
           end
@@ -906,10 +906,10 @@ module RubySaml
         expired = false
         idp_certs[:signing].each do |idp_cert|
           # TODO: [ERRORS-REFACTOR] This needs to be cleaned-up
-          # result = RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(doc.to_s, idp_cert)
-          # @errors << result if result.is_a?(String)
+          # result = RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(doc.to_s, idp_cert, @errors)
+          # @errors.concat(result) if result.is_a?(Array)
           # valid = result.is_a?(TrueClass)
-          valid = RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(doc.to_s, idp_cert)
+          valid = RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(doc.to_s, idp_cert, @errors)
           next unless valid
 
           if settings.security[:check_idp_cert_expiration] && RubySaml::Utils.is_cert_expired(idp_cert)
@@ -949,12 +949,13 @@ module RubySaml
 
     def cached_signed_assertion
       # TODO: Horrible, horrible
-      xml = RubySaml::XML::SignedDocumentValidator.referenced_xml(doc_to_validate)
+      # xml = RubySaml::XML::SignedDocumentValidator.referenced_xml(doc_to_validate)
+      # empty_doc = Nokogiri::XML::Document.new
+      #
+      # return empty_doc if xml.nil? # when no signature/reference is found, return empty document
+
       empty_doc = Nokogiri::XML::Document.new
-
-      return empty_doc if xml.nil? # when no signature/reference is found, return empty document
-
-      doc = RubySaml::XML.safe_load_nokogiri(xml)
+      doc = RubySaml::XML.safe_load_nokogiri(doc_to_validate)
       root = doc.root
 
       if root['ID'] != RubySaml::XML::SignedDocumentValidator.extract_signed_element_id(doc_to_validate)

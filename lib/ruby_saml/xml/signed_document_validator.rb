@@ -8,24 +8,35 @@ module RubySaml
     module SignedDocumentValidator
       extend self
 
+      def with_error_handling(errors, soft)
+        yield
+      rescue RubySaml::ValidationError => e
+        errors << e.message
+        raise e unless soft
+      end
+
       # TODO: [ERRORS-REFACTOR] -- Rather than returning array of error,
       # raise actual error classes
       def validate_document(document, idp_cert_fingerprint, errors = [], soft: true, **options)
-        SignedDocument.new(document.to_s, errors).validate_document(idp_cert_fingerprint, soft, options)
-        errors.empty? ? true : errors
+        with_error_handling(errors, soft) do
+          SignedDocument.validate_document(document.to_s, idp_cert_fingerprint, options)
+        end
       end
 
       def validate_document_with_cert(document, idp_cert, errors = [], soft: true)
-        SignedDocument.new(document.to_s, errors).validate_document_with_cert(idp_cert, soft)
-        errors.empty? ? true : errors
+        with_error_handling(errors, soft) do
+          SignedDocument.validate_document_with_cert(document.to_s, idp_cert)
+        end
       end
 
       def validate_signature(document, base64_cert, errors = [], soft: true)
-        SignedDocument.new(document.to_s, errors).validate_signature(base64_cert, soft)
+        with_error_handling(errors, soft) do
+          SignedDocument.validate_signature(document.to_s, base64_cert)
+        end
       end
 
       def extract_signed_element_id(document)
-        SignedDocument.new(document.to_s).send(:extract_signed_element_id)
+        SignedDocument.extract_signed_element_id(document.to_s)
 
         # noko = RubySaml::XML.safe_load_nokogiri(document.to_s)
         #
@@ -43,11 +54,11 @@ module RubySaml
         # sei.nil? ? reference_element.parent.parent.parent['ID'] : sei
       end
 
-      def referenced_xml(document)
-        doc = SignedDocument.new(document.to_s)
-        doc.cache_referenced_xml(true)
-        doc.referenced_xml
-      end
+      # def referenced_xml(document)
+      #   doc = SignedDocument.new(document.to_s)
+      #   doc.cache_referenced_xml(true)
+      #   doc.referenced_xml
+      # end
 
       private
 

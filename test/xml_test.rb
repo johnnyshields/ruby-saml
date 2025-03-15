@@ -81,7 +81,7 @@ class XmlTest < Minitest::Test
         # The fingerprint isn't relevant to this test
         RubySaml::XML::SignedDocumentValidator.validate_document(modified_response, "a fingerprint", soft: false)
       end
-      assert_equal("Certificate element missing in response (ds:X509Certificate) and not cert provided at settings", exception.message)
+      assert_equal("Certificate element missing in response (ds:X509Certificate) and no cert provided in settings", exception.message)
     end
 
     it "invalidates when the X509Certificate is missing and the cert is provided but mismatches" do
@@ -555,7 +555,7 @@ class XmlTest < Minitest::Test
           refute RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(document, idp_cert).is_a?(TrueClass), 'Document should be valid'
           errors = []
           RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(document, idp_cert, errors)
-          assert_equal(["Document Certificate Error"], errors)
+          assert_equal(["Document Certificate Error: PEM_read_bio_X509: no start line"], errors)
         end
       end
 
