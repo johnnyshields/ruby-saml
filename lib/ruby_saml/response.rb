@@ -19,11 +19,8 @@ module RubySaml
       "a" => ASSERTION
     }.freeze
 
-    # TODO: Settings should probably be initialized too... WDYT?
-
-    # RubySaml::Settings Toolkit settings
+    # TODO: This should not be an accessor
     attr_accessor :settings
-
     attr_reader :document
     attr_reader :decrypted_document
     attr_reader :response
@@ -889,7 +886,9 @@ module RubySaml
             return append_error(error_msg)
           end
         rescue => e
-          return append_error(error_msg) # "#{error_msg}: #{e.message}")
+          # TODO: This can be one message
+          append_error(e.message)
+          return append_error(error_msg)
         end
       else
         valid = false
@@ -936,34 +935,23 @@ module RubySaml
         end
     end
 
-    def cached_signed_assertion
-      empty_doc = Nokogiri::XML::Document.new
-      signed_element_id = XML::SignedDocumentValidator.extract_signed_element_id(doc_to_validate)
-      return empty_doc if signed_element_id.nil?
-
-      doc = Nokogiri::XML(doc_to_validate.to_s)
-      root = doc.root
-
-      if root['ID'] != signed_element_id
-        return empty_doc
-      end
-
-      assertion = empty_doc
-      if root.name == "Response"
-        if root.at_xpath("a:Assertion", {"a" => ASSERTION})
-          assertion = root.at_xpath("a:Assertion", {"a" => ASSERTION})
-        elsif root.at_xpath("a:EncryptedAssertion", {"a" => ASSERTION})
-          assertion = decrypt_assertion(root.at_xpath("a:EncryptedAssertion", {"a" => ASSERTION}))
-        end
-      elsif root.name == "Assertion"
-        assertion = root
-      end
-
-      assertion
-    end
-
     def signed_assertion
-      @signed_assertion ||= cached_signed_assertion
+      @signed_assertion ||= begin
+        doc = decrypted_document || document
+
+        signed_element_id = XML::SignedDocumentValidator.extract_signed_element_id(doc)
+        return Nokogiri::XML::Document.new if doc.root['ID'] != signed_element_id
+
+        assertion_node = case (root = doc.root).name
+                         when 'Response'
+                           root.at_xpath('a:Assertion', {'a' => ASSERTION})
+                         when 'Assertion'
+                           root
+                         end
+
+        # Return assertion if found, otherwise create an empty document as fallback
+        assertion_node || Nokogiri::XML::Document.new
+      end
     end
 
     # Extracts the first appearance that matchs the subelt (pattern)
@@ -1078,7 +1066,7 @@ module RubySaml
       elem_plaintext = "#{node_header}#{elem_plaintext}</node>"
 
       # TODO: This might not be the right place to put this.
-      Nokogiri::XML(elem_plaintext).root.at_xpath('./saml:Attribute', 'saml' => ASSERTION)
+      Nokogiri::XML(elem_plaintext).root.at_xpath('saml:Attribute', 'saml' => ASSERTION)
     end
 
     # Parse the attribute of a given node in Time format

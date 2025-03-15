@@ -16,7 +16,7 @@ class XmlTest < Minitest::Test
     end
 
     it "should run validate without throwing NS related exceptions" do
-      assert !RubySaml::XML::SignedDocumentValidator.validate_signature(decoded_response, @base64cert)
+      refute RubySaml::XML::SignedDocumentValidator.validate_signature(decoded_response, @base64cert).is_a?(TrueClass)
     end
 
     it "should run validate with throwing NS related exceptions" do
@@ -27,7 +27,7 @@ class XmlTest < Minitest::Test
 
     it "not raise an error when softly validating the document multiple times" do
       2.times do
-        assert_equal RubySaml::XML::SignedDocumentValidator.validate_signature(decoded_response, @base64cert), false
+        refute RubySaml::XML::SignedDocumentValidator.validate_signature(decoded_response, @base64cert).is_a?(TrueClass)
       end
     end
 
@@ -570,7 +570,8 @@ class XmlTest < Minitest::Test
         end
 
         it 'is not valid (soft = true)' do
-          errors = RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(document, idp_cert)
+          errors = []
+          RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(document, idp_cert, errors)
           assert_equal(["Certificate of the Signature element does not match provided certificate"], errors)
         end
       end

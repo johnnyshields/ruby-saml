@@ -937,12 +937,12 @@ class RubySamlTest < Minitest::Test
         settings.idp_cert_fingerprint = nil
         settings.idp_cert = ruby_saml_cert_text
         content = read_response('response_with_signed_message_and_assertion.xml')
-        content = content.sub(/<ds:X509Certificate>.*<\/ds:X509Certificate>/,
-                       "<ds:X509Certificate>an-invalid-certificate</ds:X509Certificate>")
+        content = content.sub(%r{<ds:X509Certificate>.*</ds:X509Certificate>},
+                              "<ds:X509Certificate>an-invalid-certificate</ds:X509Certificate>")
         response_invalid_x509certificate = RubySaml::Response.new(content)
         response_invalid_x509certificate.settings = settings
         assert !response_invalid_x509certificate.send(:validate_signature)
-        assert_includes response_invalid_x509certificate.errors, "Document Certificate Error"
+        assert_includes response_invalid_x509certificate.errors, "Document Certificate Error: PEM_read_bio_X509: no start line"
         assert_includes response_invalid_x509certificate.errors, "Invalid Signature on SAML Response"
       end
 

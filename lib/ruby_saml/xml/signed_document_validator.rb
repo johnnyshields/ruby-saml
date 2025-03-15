@@ -13,6 +13,7 @@ module RubySaml
       rescue RubySaml::ValidationError => e
         errors << e.message
         raise e unless soft
+        errors
       end
 
       # TODO: [ERRORS-REFACTOR] -- Rather than returning array of error,
