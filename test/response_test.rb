@@ -1233,9 +1233,8 @@ class RubySamlTest < Minitest::Test
           settings.certificate = ruby_saml_cert_text
           settings.private_key = ruby_saml_key_text
           response_encrypted_attrs.settings = settings
-          attributes = response_encrypted_attrs.attributes
-          assert_equal "test", attributes[:uid]
-          assert_equal "test@example.com", attributes[:mail]
+          assert_equal "test", response_encrypted_attrs.attributes[:uid]
+          assert_equal "test@example.com", response_encrypted_attrs.attributes[:mail]
         end
       end
 

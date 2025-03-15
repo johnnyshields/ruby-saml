@@ -143,7 +143,11 @@ module RubySaml
         attributes = Attributes.new
 
         stmt_elements = xpath_from_signed_assertion('/a:AttributeStatement')
+        # puts stmt_elements.inspect
+
         stmt_elements.each do |stmt_element|
+          puts "\n\n\nMMMMMMMMMMMMMMMMM"
+          puts stmt_element.elements.inspect
           stmt_element.elements.each do |attr_element|
             if attr_element.name == "EncryptedAttribute"
               node = decrypt_attribute(attr_element.dup)
@@ -168,13 +172,14 @@ module RubySaml
                 # identify the subject in an SP rather than email or other less opaque attributes
                 # NameQualifier, if present is prefixed with a "/" to the value
                 e.xpath('a:NameID', { "a" => ASSERTION }).map do |n|
+                  next unless (value = n&.content)
                   base_path = n['NameQualifier'] ? "#{n['NameQualifier']}/" : ''
-                  "#{base_path}#{n&.content}"
+                  "#{base_path}#{value}"
                 end
               end
-            end
+            end.flatten.compact
 
-            attributes.add(name, values.flatten)
+            attributes.add(name, values)
           end
         end
 
@@ -1085,7 +1090,9 @@ module RubySaml
       # To avoid namespace errors if saml namespace is not defined
       # create a parent node first with the namespace defined
       elem_plaintext = "#{node_header}#{elem_plaintext}</node>"
-      Nokogiri::XML(elem_plaintext).root
+
+      # TODO: This might not be the right place to put this.
+      Nokogiri::XML(elem_plaintext).root.at_xpath('./saml:Attribute', 'saml' => ASSERTION)
     end
 
     # Parse the attribute of a given node in Time format

@@ -9,13 +9,10 @@ module RubySaml
     # Append the cause to the errors array, and based on the value of soft, return false or raise
     # an exception. soft_override is provided as a means of overriding the object's notion of
     # soft for just this invocation.
-    def append_error(error_msg, soft_override = nil)
+    def append_error(error_msg, soft_override = false)
       @errors << error_msg
 
-      puts 'zzz'
-      puts "soft_override: #{soft_override.inspect}"
-      # puts "soft: #{soft}"
-      unless soft_override.nil? ? soft : soft_override
+      unless soft_override || (respond_to?(:soft) && soft)
         raise ValidationError.new(error_msg)
       end
 

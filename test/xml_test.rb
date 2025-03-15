@@ -32,8 +32,9 @@ class XmlTest < Minitest::Test
     end
 
     it "not raise an error when softly validating the document and the X509Certificate is missing" do
-      modified_response = decoded_response.sub(/<ds:X509Certificate>.*<\/ds:X509Certificate>/, '')
-      assert !RubySaml::XML::SignedDocumentValidator.validate_document(modified_response, "a fingerprint", soft: true) # The fingerprint isn't relevant to this test
+      modified_response = decoded_response.sub(%r{<ds:X509Certificate>.*</ds:X509Certificate>}, '')
+      # The fingerprint isn't relevant to this test
+      refute RubySaml::XML::SignedDocumentValidator.validate_document(modified_response, "a fingerprint", soft: true).is_a?(TrueClass)
     end
 
     it "should raise Fingerprint mismatch" do
@@ -62,7 +63,7 @@ class XmlTest < Minitest::Test
 
       errors = []
       exception = assert_raises(RubySaml::ValidationError) do
-        RubySaml::XML::SignedDocumentValidator.validate_signature(modified_response, base64cert, soft: false)
+        RubySaml::XML::SignedDocumentValidator.validate_signature(modified_response, base64cert, errors, soft: false)
       end
       assert_equal("Key validation error", exception.message)
       assert_includes errors, "Key validation error"
@@ -75,18 +76,20 @@ class XmlTest < Minitest::Test
     end
 
     it "raise validation error when the X509Certificate is missing and no cert provided" do
-      modified_response = decoded_response.sub(/<ds:X509Certificate>.*<\/ds:X509Certificate>/, '')
+      modified_response = decoded_response.sub(%r{<ds:X509Certificate>.*</ds:X509Certificate>}, '')
       exception = assert_raises(RubySaml::ValidationError) do
-        RubySaml::XML::SignedDocumentValidator.validate_document(modified_response, "a fingerprint", soft: false) # The fingerprint isn't relevant to this test
+        # The fingerprint isn't relevant to this test
+        RubySaml::XML::SignedDocumentValidator.validate_document(modified_response, "a fingerprint", soft: false)
       end
       assert_equal("Certificate element missing in response (ds:X509Certificate) and not cert provided at settings", exception.message)
     end
 
-    it "invalidaties when the X509Certificate is missing and the cert is provided but mismatches" do
-      decoded_response.sub!(%r{<ds:X509Certificate>.*<\/ds:X509Certificate>}, '')
+    it "invalidates when the X509Certificate is missing and the cert is provided but mismatches" do
+      modified_response = decoded_response.sub(%r{<ds:X509Certificate>.*</ds:X509Certificate>}, '')
       cert = OpenSSL::X509::Certificate.new(ruby_saml_cert)
 
-      assert !RubySaml::XML::SignedDocumentValidator.validate_document(decoded_response, "a fingerprint", soft: true, cert: cert) # The fingerprint isn't relevant to this test
+      # The fingerprint isn't relevant to this test
+      refute RubySaml::XML::SignedDocumentValidator.validate_document(modified_response, "a fingerprint", soft: true, cert: cert).is_a?(TrueClass)
     end
   end
 
@@ -147,6 +150,8 @@ class XmlTest < Minitest::Test
       sha1_fingerprint_downcase = sha1_fingerprint.tr(':', '').downcase
 
       assert RubySaml::XML::SignedDocumentValidator.validate_document(document, sha1_fingerprint, fingerprint_alg: RubySaml::XML::SHA1)
+      # TODO: Do not return errors, instead raise error
+      refute RubySaml::XML::SignedDocumentValidator.validate_document(document, sha1_fingerprint, fingerprint_alg: RubySaml::XML::SHA256).is_a?(TrueClass)
       assert RubySaml::XML::SignedDocumentValidator.validate_document(document, sha1_fingerprint_downcase, fingerprint_alg: RubySaml::XML::SHA1)
     end
 
@@ -155,6 +160,8 @@ class XmlTest < Minitest::Test
       sha256_fingerprint_downcase = sha256_fingerprint.tr(':', '').downcase
 
       assert RubySaml::XML::SignedDocumentValidator.validate_document(document, sha256_fingerprint)
+      # TODO: Do not return errors, instead raise error
+      refute RubySaml::XML::SignedDocumentValidator.validate_document(document, sha256_fingerprint, fingerprint_alg: RubySaml::XML::SHA1).is_a?(TrueClass)
       assert RubySaml::XML::SignedDocumentValidator.validate_document(document, sha256_fingerprint, fingerprint_alg: RubySaml::XML::SHA256)
 
       assert RubySaml::XML::SignedDocumentValidator.validate_document(document, sha256_fingerprint_downcase)
@@ -164,14 +171,16 @@ class XmlTest < Minitest::Test
     it 'validate using SHA384' do
       sha384_fingerprint = '98:FE:17:90:31:E7:68:18:8A:65:4D:DA:F5:76:E2:09:97:BE:8B:E3:7E:AA:8D:63:64:7C:0C:38:23:9A:AC:A2:EC:CE:48:A6:74:4D:E0:4C:50:80:40:B4:8D:55:14:14'
 
-      assert !RubySaml::XML::SignedDocumentValidator.validate_document(document, sha384_fingerprint)
+      # TODO: Do not return errors, instead raise error
+      assert !RubySaml::XML::SignedDocumentValidator.validate_document(document, sha384_fingerprint).is_a?(TrueClass)
       assert RubySaml::XML::SignedDocumentValidator.validate_document(document, sha384_fingerprint, fingerprint_alg: RubySaml::XML::SHA384)
     end
 
     it 'validate using SHA512' do
       sha512_fingerprint = '5A:AE:BA:D0:BA:9D:1E:25:05:01:1E:1A:C9:E9:FF:DB:ED:FA:6E:F7:52:EB:45:49:BD:DB:06:D8:A3:7E:CC:63:3A:04:A2:DD:DF:EE:61:05:D9:58:95:2A:77:17:30:4B:EB:4A:9F:48:4A:44:1C:D0:9E:0B:1E:04:77:FD:A3:D2'
 
-      assert !RubySaml::XML::SignedDocumentValidator.validate_document(document, sha512_fingerprint)
+      # TODO: Do not return errors, instead raise error
+      assert !RubySaml::XML::SignedDocumentValidator.validate_document(document, sha512_fingerprint).is_a?(TrueClass)
       assert RubySaml::XML::SignedDocumentValidator.validate_document(document, sha512_fingerprint, fingerprint_alg: RubySaml::XML::SHA512)
     end
   end
@@ -465,7 +474,8 @@ class XmlTest < Minitest::Test
         let(:fingerprint) { 'afe71c28ef740bc87425be13a2263d37971da1f9' }
 
         it 'is invalid' do
-          assert !RubySaml::XML::SignedDocumentValidator.validate_document(document, fingerprint), 'Document should be invalid'
+          # TODO: Raise errors instead of returning errors, remove the is_a?(TrueClass) check
+          refute RubySaml::XML::SignedDocumentValidator.validate_document(document, fingerprint).is_a?(TrueClass), 'Document should be invalid'
         end
       end
 
@@ -500,9 +510,11 @@ class XmlTest < Minitest::Test
       describe 'with invalid document ' do
         describe 'when certificate is invalid' do
           it 'is invalid' do
-            wrong_document_data = document_data.sub(/<ds:X509Certificate>.*<\/ds:X509Certificate>/, "<ds:X509Certificate>invalid<\/ds:X509Certificate>")
+            wrong_document_data = document_data.sub(%r{<ds:X509Certificate>.*</ds:X509Certificate>},
+                                                    '<ds:X509Certificate>invalid</ds:X509Certificate>')
             wrong_document = RubySaml::Response.new(wrong_document_data).document
-            refute RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(wrong_document, idp_cert), 'Document should be invalid'
+            # TODO: Do not return errors, instead raise error
+            refute RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(wrong_document, idp_cert).is_a?(TrueClass), 'Document should be invalid'
           end
         end
       end
@@ -535,13 +547,14 @@ class XmlTest < Minitest::Test
       describe 'when response cert is invalid' do
         let(:document_data) do
           contents = read_response('response_with_signed_message_and_assertion.xml')
-          contents.sub(/<ds:X509Certificate>.*<\/ds:X509Certificate>/,
+          contents.sub(%r{<ds:X509Certificate>.*</ds:X509Certificate>},
                        "<ds:X509Certificate>an-invalid-certificate</ds:X509Certificate>")
         end
 
         it 'is not valid' do
-          assert !RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(document, idp_cert), 'Document should be valid'
-          errors = RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(document, idp_cert)
+          refute RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(document, idp_cert).is_a?(TrueClass), 'Document should be valid'
+          errors = []
+          RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(document, idp_cert, errors)
           assert_equal(["Document Certificate Error"], errors)
         end
       end

@@ -68,8 +68,6 @@ module RubySaml
           base64_cert = Base64.encode64(cert.to_der)
         elsif options[:cert]
           base64_cert = Base64.encode64(options[:cert].to_pem)
-        elsif soft
-          return false
         else
           return append_error('Certificate element missing in response (ds:X509Certificate) and not cert provided at settings', soft)
         end
@@ -111,10 +109,7 @@ module RubySaml
         begin
           noko = RubySaml::XML.safe_load_nokogiri(self, check_malformed_doc: check_malformed_doc)
         rescue StandardError => e
-          @errors << e.message
-          return false if soft
-
-          raise ValidationError.new("XML load failed: #{e.message}")
+          return append_error("XML load failed: #{e.message}")
         end
 
         # get signature node
