@@ -6,12 +6,12 @@ require 'base64'
 require 'openssl'
 
 class NokogiriDecryptorTest < Minitest::Test
-  XML_DSIG = "http://www.w3.org/2000/09/xmldsig#"
-  XML_ENC = "http://www.w3.org/2001/04/xmlenc#"
-  SAML_ASSERTION = "urn:oasis:names:tc:SAML:2.0:assertion"
-  SAML_PROTOCOL = "urn:oasis:names:tc:SAML:2.0:protocol"
+  XML_DSIG       = RubySaml::XML::DSIG
+  XML_ENC        = RubySaml::XML::XENC
+  SAML_ASSERTION = RubySaml::XML::NS_ASSERTION
+  SAML_PROTOCOL  = RubySaml::XML::NS_PROTOCOL
 
-  describe "Nokogiri XML Decryptor" do
+  describe 'RubySaml::XML::Decryptor' do
     let(:document_encrypted_assertion) { fixture(:unsigned_encrypted_adfs, false) }
     let(:noko_encrypted_assertion_doc) { Nokogiri::XML(document_encrypted_assertion) }
     let(:noko_encrypted_assertion_node) { noko_encrypted_assertion_doc.at_xpath('//saml:EncryptedAssertion|//EncryptedAssertion', 'saml' => SAML_ASSERTION) }

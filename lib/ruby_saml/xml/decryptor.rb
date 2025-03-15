@@ -9,9 +9,6 @@ module RubySaml
     module Decryptor
       extend self
 
-      ASSERTION = 'urn:oasis:names:tc:SAML:2.0:assertion'
-      XENC = 'http://www.w3.org/2001/04/xmlenc#'
-
       # Generates decrypted document with assertions decrypted
       # @param document [Nokogiri::XML::Document] The encrypted SAML document
       # @param decryption_keys [Array] Array of private keys for decryption
@@ -34,7 +31,7 @@ module RubySaml
         )
         encrypted_assertion_node = document.at_xpath(
           '/p:Response/EncryptedAssertion | /p:Response/a:EncryptedAssertion',
-          { 'p' => 'urn:oasis:names:tc:SAML:2.0:protocol', 'a' => ASSERTION }
+          { 'p' => 'urn:oasis:names:tc:SAML:2.0:protocol', 'a' => RubySaml::XML::NS_ASSERTION }
         )
 
         if encrypted_assertion_node && response_node
@@ -78,9 +75,9 @@ module RubySaml
         raise ValidationError.new('No decryption keys provided') if decryption_keys.empty?
 
         node_header = if encrypt_node.name == 'EncryptedAttribute'
-                        %(<node xmlns:saml="#{ASSERTION}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">)
+                        %(<node xmlns:saml="#{RubySaml::XML::NS_ASSERTION}" xmlns:xsi="#{RubySaml::XML::XSI}">)
                       else
-                        %(<node xmlns:saml="#{ASSERTION}">)
+                        %(<node xmlns:saml="#{RubySaml::XML::NS_ASSERTION}">)
                       end
 
         elem_plaintext = decrypt_node_with_multiple_keys(encrypt_node, decryption_keys)
@@ -96,7 +93,7 @@ module RubySaml
         doc = Nokogiri::XML(elem_plaintext)
 
         if encrypt_node.name == 'EncryptedAttribute'
-          doc.root.at_xpath('saml:Attribute', 'saml' => ASSERTION)
+          doc.root.at_xpath('saml:Attribute', 'saml' => RubySaml::XML::NS_ASSERTION)
         else
           doc.root.children.first
         end
@@ -133,17 +130,17 @@ module RubySaml
       def decrypt_node_with_single_key(encrypted_node, private_key)
         encrypt_data = encrypted_node.at_xpath(
           './xenc:EncryptedData',
-          { 'xenc' => XENC }
+          { 'xenc' => RubySaml::XML::XENC }
         )
         symmetric_key = retrieve_symmetric_key(encrypt_data, private_key)
         cipher_value = encrypt_data.at_xpath(
           './xenc:CipherData/xenc:CipherValue',
-          { 'xenc' => XENC }
+          { 'xenc' => RubySaml::XML::XENC }
         )
         node = Base64.decode64(cipher_value.text)
         encrypt_method = encrypt_data.at_xpath(
           './xenc:EncryptionMethod',
-          { 'xenc' => XENC }
+          { 'xenc' => RubySaml::XML::XENC }
         )
         algorithm = encrypt_method['Algorithm']
         retrieve_plaintext(node, symmetric_key, algorithm)
@@ -158,20 +155,20 @@ module RubySaml
 
         encrypted_key = encrypt_data.at_xpath(
           "./ds:KeyInfo/xenc:EncryptedKey | ./KeyInfo/xenc:EncryptedKey#{' | //xenc:EncryptedKey[@Id=$id]' if key_ref}",
-          { "ds" => DSIG, "xenc" => XENC },
+          { "ds" => DSIG, "xenc" => RubySaml::XML::XENC },
           { "id" => key_ref }.compact
         )
 
         encrypted_symmetric_key_element = encrypted_key.at_xpath(
           "./xenc:CipherData/xenc:CipherValue",
-          "xenc" => XENC
+          "xenc" => RubySaml::XML::XENC
         )
 
         cipher_text = Base64.decode64(encrypted_symmetric_key_element.text)
 
         encrypt_method = encrypted_key.at_xpath(
           "./xenc:EncryptionMethod",
-          "xenc" => XENC
+          "xenc" => RubySaml::XML::XENC
         )
 
         algorithm = encrypt_method['Algorithm']
