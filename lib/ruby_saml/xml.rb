@@ -130,6 +130,7 @@ module RubySaml
 end
 
 require 'ruby_saml/xml/document_signer'
+require "ruby_saml/xml/decryptor"
 require 'ruby_saml/xml/signed_document'
 require 'ruby_saml/xml/signed_document_validator'
 require 'ruby_saml/xml/deprecated'

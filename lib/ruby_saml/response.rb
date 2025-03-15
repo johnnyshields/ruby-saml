@@ -144,9 +144,9 @@ module RubySaml
         stmt_elements.each do |stmt_element|
           stmt_element.elements.each do |attr_element|
             if attr_element.name == "EncryptedAttribute"
-              node = decrypt_attribute(attr_element.dup)
+              RubySaml::XML::Decryptor.decrypt_attribute(attr_element.dup, settings.get_sp_decryption_keys)
             else
-              node = attr_element
+              attr_element
             end
 
             name = node['Name']
@@ -928,7 +928,7 @@ module RubySaml
         begin
           encrypted_node = xpath_first_from_signed_assertion('/a:Subject/a:EncryptedID')
           if encrypted_node
-            decrypt_nameid(encrypted_node)
+            RubySaml::XML::Decryptor.decrypt_nameid(encrypted_node, settings.get_sp_decryption_keys)
           else
             xpath_first_from_signed_assertion('/a:Subject/a:NameID')
           end
@@ -994,79 +994,7 @@ module RubySaml
 
       document_copy = RubySaml::XML.safe_load_nokogiri(document.to_s)
 
-      decrypt_assertion_from_document(document_copy)
-    end
-
-    # Obtains a SAML Response with the EncryptedAssertion element decrypted
-    # @param document_copy [RubySaml::XML::SignedDocument] A copy of the original SAML Response with the encrypted assertion
-    # @return [RubySaml::XML::SignedDocument] The SAML Response with the assertion decrypted
-    #
-    def decrypt_assertion_from_document(document_copy)
-      response_node = document_copy.at_xpath(
-        "/p:Response",
-        { "p" => PROTOCOL }
-      )
-      encrypted_assertion_node = document_copy.at_xpath(
-        "/p:Response/EncryptedAssertion | /p:Response/a:EncryptedAssertion",
-        { "p" => PROTOCOL, "a" => ASSERTION }
-      )
-      response_node.add_child(decrypt_assertion(encrypted_assertion_node))
-      encrypted_assertion_node.remove
-      response_node
-    end
-
-    # Decrypts an EncryptedAssertion element
-    # @param encrypted_assertion_node [Nokogiri::XML::Element] The EncryptedAssertion element
-    # @return [Nokogiri::XML::Document] The decrypted EncryptedAssertion element
-    #
-    def decrypt_assertion(encrypted_assertion_node)
-      decrypt_element(encrypted_assertion_node, %r{(.*</(\w+:)?Assertion>)}m)
-    end
-
-    # Decrypts an EncryptedID element
-    # @param encrypted_id_node [Nokogiri::XML::Element] The EncryptedID element
-    # @return [Nokogiri::XML::Document] The decrypted EncrypedtID element
-    #
-    def decrypt_nameid(encrypted_id_node)
-      decrypt_element(encrypted_id_node, /(.*<\/(\w+:)?NameID>)/m)
-    end
-
-    # Decrypts an EncryptedAttribute element
-    # @param encrypted_attribute_node [Nokogiri::XML::Element] The EncryptedAttribute element
-    # @return [Nokogiri::XML::Document] The decrypted EncryptedAttribute element
-    #
-    def decrypt_attribute(encrypted_attribute_node)
-      decrypt_element(encrypted_attribute_node, /(.*<\/(\w+:)?Attribute>)/m)
-    end
-
-    # Decrypt an element
-    # @param encrypt_node [Nokogiri::XML::Element] The encrypted element
-    # @param regexp [Regexp] The regular expression to extract the decrypted data
-    # @return [Nokogiri::XML::Document] The decrypted element
-    #
-    def decrypt_element(encrypt_node, regexp)
-      if settings.nil? || settings.get_sp_decryption_keys.empty?
-        raise ValidationError.new("An #{encrypt_node.name} found and no SP private key found on the settings to decrypt it.")
-      end
-
-      node_header = if encrypt_node.name == 'EncryptedAttribute'
-                      '<node xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
-                    else
-                      '<node xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">'
-                    end
-
-      elem_plaintext = RubySaml::Utils.decrypt_multi(encrypt_node, settings.get_sp_decryption_keys)
-
-      # If we get some problematic noise in the plaintext after decrypting.
-      # This quick regexp parse will grab only the Element and discard the noise.
-      elem_plaintext = elem_plaintext.match(regexp)[0]
-
-      # To avoid namespace errors if saml namespace is not defined
-      # create a parent node first with the namespace defined
-      elem_plaintext = "#{node_header}#{elem_plaintext}</node>"
-
-      # TODO: This might not be the right place to put this.
-      Nokogiri::XML(elem_plaintext).root.at_xpath('saml:Attribute', 'saml' => ASSERTION)
+      RubySaml::XML::Decryptor.decrypt_document(document_copy, settings.get_sp_decryption_keys)
     end
 
     # Parse the attribute of a given node in Time format

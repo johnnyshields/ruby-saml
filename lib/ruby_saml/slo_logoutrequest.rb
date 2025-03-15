@@ -76,38 +76,13 @@ module RubySaml
     alias_method :nameid_format, :name_id_format
 
     def name_id_node
-      @name_id_node ||=
-        begin
-          encrypted_node = document.at_xpath("/p:LogoutRequest/a:EncryptedID", { "p" => PROTOCOL, "a" => ASSERTION })
-          if encrypted_node
-            decrypt_nameid(encrypted_node)
-          else
-            document.at_xpath("/p:LogoutRequest/a:NameID", { "p" => PROTOCOL, "a" => ASSERTION })
-          end
-        end
-    end
-
-    # Decrypts an EncryptedID element
-    # @param encrypted_id_node [Nokogiri::XML::Element] The EncryptedID element
-    # @return [Nokogiri::XML::Element] The decrypted EncrypedtID element
-    #
-    def decrypt_nameid(encrypted_id_node)
-      if settings.nil? || settings.get_sp_decryption_keys.empty?
-        raise ValidationError.new("An #{encrypted_id_node.name} found and no SP private key found on the settings to decrypt it")
-      end
-
-      elem_plaintext = RubySaml::Utils.decrypt_multi(encrypted_id_node, settings.get_sp_decryption_keys)
-
-      # If we get some problematic noise in the plaintext after decrypting.
-      # This quick regexp parse will grab only the Element and discard the noise.
-      elem_plaintext = elem_plaintext.match(/(.*<\/(\w+:)?NameID>)/m)[0]
-
-      # To avoid namespace errors if saml namespace is not defined
-      # create a parent node first with the namespace defined
-      node_header = '<node xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">'
-      elem_plaintext = node_header + elem_plaintext + '</node>'
-      doc = Nokogiri::XML(elem_plaintext)
-      doc.root.at_xpath('.//*')
+      @name_id_node ||= if (encrypted_node = document.at_xpath("/p:LogoutRequest/a:EncryptedID", { "p" => PROTOCOL, "a" => ASSERTION }))
+                          RubySaml::XML::Decryptor.decrypt_node(encrypted_node,
+                                                                   /(.*<\/(\w+:)?NameID>)/m,
+                                                                   settings.get_sp_decryption_keys)
+                        else
+                          document.at_xpath("/p:LogoutRequest/a:NameID", { "p" => PROTOCOL, "a" => ASSERTION })
+                        end
     end
 
     # @return [String|nil] Gets the ID attribute from the Logout Request. if exists.
