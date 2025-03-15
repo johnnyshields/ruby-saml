@@ -41,7 +41,7 @@ module RubySaml
 
       @options = options
       @response = decode_raw_saml(response, settings)
-      @document = RubySaml::XML::SignedDocument.new(@response)
+      @document = REXML::Document.new(@response)
       super()
     end
 

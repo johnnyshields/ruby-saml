@@ -10,36 +10,15 @@ REXML::Security.entity_expansion_limit = 0
 
 module RubySaml
   module XML
-    class SignedDocument < REXML::Document
-      include RubySaml::ErrorHandling
-
-      attr_reader :processed,
-                  :referenced_xml
-
-      def initialize(response, errors = [])
-        super(response)
-        @errors = errors
-        reset_elements
-      end
-
-      def reset_elements
-        @referenced_xml = nil
-        @cached_signed_info = nil
-        @signature = nil
-        @signature_hash_algorithm = nil
-        @ref = nil
-        @processed = false
-      end
-
-      def signed_element_id
-        @signed_element_id ||= extract_signed_element_id
-      end
+    module SignedDocument
+      extend self
 
       # Validates the referenced_xml, which is the signed part of the document
-      def validate_document(idp_cert_fingerprint, soft = true, options = {})
+      def validate_document(rexml_doc, idp_cert_fingerprint, options = {})
+        rexml_doc = REXML::Document.new(rexml_doc) if rexml_doc.is_a?(String)
         # get cert from response
         cert_element = REXML::XPath.first(
-          self,
+          rexml_doc,
           '//ds:X509Certificate',
           { 'ds' => RubySaml::XML::DSIG }
         )
@@ -49,8 +28,9 @@ module RubySaml
           cert_text = Base64.decode64(base64_cert)
           begin
             cert = OpenSSL::X509::Certificate.new(cert_text)
-          rescue OpenSSL::X509::CertificateError => _e
-            return append_error('Document Certificate Error', soft)
+          rescue OpenSSL::X509::CertificateError => e
+            raise RubySaml::ValidationError.new('Document Certificate Error')
+            # raise RubySaml::ValidationError.new("Document Certificate Error: #{e.message}")
           end
 
           if options[:fingerprint_alg]
@@ -58,29 +38,29 @@ module RubySaml
           else
             fingerprint_alg = OpenSSL::Digest.new('SHA256')
           end
+
           fingerprint = fingerprint_alg.hexdigest(cert.to_der)
 
-          # check cert matches registered idp cert
+          # Check cert matches registered idp cert
           if fingerprint != idp_cert_fingerprint.gsub(/[^a-zA-Z0-9]/, '').downcase
-            return append_error('Fingerprint mismatch', soft)
+            raise RubySaml::ValidationError.new("Fingerprint mismatch")
           end
 
           base64_cert = Base64.encode64(cert.to_der)
         elsif options[:cert]
           base64_cert = Base64.encode64(options[:cert].to_pem)
-        elsif soft
-          return false
         else
-          return append_error('Certificate element missing in response (ds:X509Certificate) and not cert provided at settings', soft)
+          raise RubySaml::ValidationError.new("Certificate element missing in response (ds:X509Certificate) and no cert provided in settings")
         end
 
-        validate_signature(base64_cert, soft)
+        validate_signature(rexml_doc, base64_cert)
       end
 
-      def validate_document_with_cert(idp_cert, soft = true)
+      def validate_document_with_cert(rexml_doc, idp_cert)
+        rexml_doc = REXML::Document.new(rexml_doc) if rexml_doc.is_a?(String)
         # get cert from response
         cert_element = REXML::XPath.first(
-          self,
+          rexml_doc,
           '//ds:X509Certificate',
           { 'ds' => RubySaml::XML::DSIG }
         )
@@ -90,30 +70,26 @@ module RubySaml
           cert_text = Base64.decode64(base64_cert)
           begin
             cert = OpenSSL::X509::Certificate.new(cert_text)
-          rescue OpenSSL::X509::CertificateError => _e
-            return append_error('Document Certificate Error', soft)
+          rescue OpenSSL::X509::CertificateError => e
+            raise RubySaml::ValidationError.new("Document Certificate Error: #{e.message}")
           end
 
-          # check saml response cert matches provided idp cert
+          # Check saml response cert matches provided idp cert
           if idp_cert.to_pem != cert.to_pem
-            return append_error('Certificate of the Signature element does not match provided certificate', soft)
+            raise RubySaml::ValidationError.new("Certificate of the Signature element does not match provided certificate")
           end
         end
 
         encoded_idp_cert = Base64.encode64(idp_cert.to_pem)
-        validate_signature(encoded_idp_cert, true)
+        validate_signature(rexml_doc, encoded_idp_cert)
       end
 
-      def cache_referenced_xml(soft, check_malformed_doc: true)
-        reset_elements
-        @processed = true
+      def get_referenced_xml(rexml_doc, check_malformed_doc: true)
+        rexml_doc = REXML::Document.new(rexml_doc) if rexml_doc.is_a?(String)
 
         begin
-          noko = RubySaml::XML.safe_load_nokogiri(self, check_malformed_doc: check_malformed_doc)
+          noko = RubySaml::XML.safe_load_nokogiri(rexml_doc, check_malformed_doc: check_malformed_doc)
         rescue StandardError => e
-          @errors << e.message
-          return false if soft
-
           raise ValidationError.new("XML load failed: #{e.message}")
         end
 
@@ -129,7 +105,7 @@ module RubySaml
           './ds:SignedInfo/ds:SignatureMethod',
           { 'ds' => RubySaml::XML::DSIG }
         )
-        @signature_hash_algorithm = RubySaml::XML.hash_algorithm(sig_alg_value)
+        signature_hash_algorithm = RubySaml::XML.hash_algorithm(sig_alg_value)
 
         # get signature
         base64_signature = sig_element.at_xpath(
@@ -139,7 +115,7 @@ module RubySaml
         return if base64_signature.nil?
 
         base64_signature_text = base64_signature.content
-        @signature = Base64.decode64(base64_signature_text) if base64_signature_text
+        signature = Base64.decode64(base64_signature_text) if base64_signature_text
 
         # canonicalization method
         canon_method_node = sig_element.at_xpath(
@@ -150,21 +126,21 @@ module RubySaml
 
         noko_sig_element = noko.at_xpath('//ds:Signature', 'ds' => RubySaml::XML::DSIG)
         noko_signed_info_element = noko_sig_element.at_xpath('./ds:SignedInfo', 'ds' => RubySaml::XML::DSIG)
-        @cached_signed_info = noko_signed_info_element.canonicalize(canon_algorithm)
+        cached_signed_info = noko_signed_info_element.canonicalize(canon_algorithm)
 
-        # Now get the @referenced_xml to use?
-        rexml_signed_info = REXML::Document.new(@cached_signed_info.to_s).root
+        # Now get the referenced_xml to use?
+        rexml_signed_info = REXML::Document.new(cached_signed_info.to_s).root
 
         noko_sig_element.remove
 
         # get inclusive namespaces
-        inclusive_namespaces = extract_inclusive_namespaces
+        inclusive_namespaces = extract_inclusive_namespaces(rexml_doc)
 
         # check digests
-        @ref = REXML::XPath.first(rexml_signed_info, './ds:Reference', { 'ds' => DSIG })
-        return if @ref.nil?
+        ref = REXML::XPath.first(rexml_signed_info, './ds:Reference', { 'ds' => DSIG })
+        return if ref.nil?
 
-        reference_nodes = noko.xpath('//*[@ID=$id]', nil, { 'id' => extract_signed_element_id })
+        reference_nodes = noko.xpath('//*[@ID=$id]', nil, { 'id' => extract_signed_element_id(rexml_doc) })
 
         hashed_element = reference_nodes[0]
         return if hashed_element.nil?
@@ -174,33 +150,35 @@ module RubySaml
           { 'ds' => RubySaml::XML::DSIG }
         )
         canon_algorithm = RubySaml::XML.canon_algorithm(canon_method_node)
-        canon_algorithm = process_transforms(@ref, canon_algorithm)
+        canon_algorithm = process_transforms(ref, canon_algorithm)
 
-        @referenced_xml = hashed_element.canonicalize(canon_algorithm, inclusive_namespaces)
+        referenced_xml = hashed_element.canonicalize(canon_algorithm, inclusive_namespaces)
+
+        [signature_hash_algorithm, signature, cached_signed_info, ref, referenced_xml]
       end
 
-      def validate_signature(base64_cert, soft = true)
-        cache_referenced_xml(soft) unless @processed
+      def validate_signature(rexml_doc, base64_cert)
+        signature_hash_algorithm, signature, cached_signed_info, ref, referenced_xml = get_referenced_xml(rexml_doc)
 
-        return append_error('No Signature Hash Algorithm Method found', soft) if @signature_hash_algorithm.nil?
-        return append_error('No Signature node found', soft) if @signature.nil?
-        return append_error('No canonized SignedInfo ', soft) if @cached_signed_info.nil?
-        return append_error('No Reference node found', soft) if @ref.nil?
-        return append_error('No referenced XML', soft) if @referenced_xml.nil?
+        raise RubySaml::ValidationError.new('No Signature Hash Algorithm Method found') if signature_hash_algorithm.nil?
+        raise RubySaml::ValidationError.new('No Signature node found') if signature.nil?
+        raise RubySaml::ValidationError.new('No canonized SignedInfo ') if cached_signed_info.nil?
+        raise RubySaml::ValidationError.new('No Reference node found') if ref.nil?
+        raise RubySaml::ValidationError.new('No referenced XML') if referenced_xml.nil?
 
         # get certificate object
         cert_text = Base64.decode64(base64_cert)
         cert = OpenSSL::X509::Certificate.new(cert_text)
 
         digest_method_node = REXML::XPath.first(
-          @ref,
+          ref,
           './ds:DigestMethod',
           { 'ds' => DSIG }
         )
         digest_algorithm = RubySaml::XML.hash_algorithm(digest_method_node)
-        hash = digest_algorithm.digest(@referenced_xml)
+        hash = digest_algorithm.digest(referenced_xml)
         encoded_digest_value = REXML::XPath.first(
-          @ref,
+          ref,
           './ds:DigestValue',
           { 'ds' => DSIG }
         )
@@ -209,19 +187,35 @@ module RubySaml
 
         # Compare the computed "hash" with the "signed" hash
         unless hash && hash == digest_value
-          return append_error('Digest mismatch', soft)
+          return raise RubySaml::ValidationError.new('Digest mismatch')
         end
 
         # verify signature
         signature_verified = false
         begin
-          signature_verified = cert.public_key.verify(@signature_hash_algorithm.new, @signature, @cached_signed_info)
+          signature_verified = cert.public_key.verify(signature_hash_algorithm.new, signature, cached_signed_info)
         rescue OpenSSL::PKey::PKeyError # rubocop:disable Lint/SuppressedException
         end
-        return append_error('Key validation error', soft) unless signature_verified
+        return raise RubySaml::ValidationError.new('Key validation error') unless signature_verified
 
         true
       end
+
+      def extract_signed_element_id(rexml_doc)
+        rexml_doc = REXML::Document.new(rexml_doc) if rexml_doc.is_a?(String)
+
+        reference_element = REXML::XPath.first(
+          rexml_doc,
+          '//ds:Signature/ds:SignedInfo/ds:Reference',
+          { 'ds' => RubySaml::XML::DSIG }
+        )
+
+        return nil if reference_element.nil?
+
+        sei = reference_element.attribute('URI').value[1..]
+        sei.nil? ? reference_element.parent.parent.parent.attribute('ID').value : sei
+      end
+      alias_method :signed_element_id, :extract_signed_element_id
 
       private
 
@@ -245,22 +239,9 @@ module RubySaml
         hash == digest_value
       end
 
-      def extract_signed_element_id
-        reference_element = REXML::XPath.first(
-          self,
-          '//ds:Signature/ds:SignedInfo/ds:Reference',
-          { 'ds' => RubySaml::XML::DSIG }
-        )
-
-        return nil if reference_element.nil?
-
-        sei = reference_element.attribute('URI').value[1..]
-        sei.nil? ? reference_element.parent.parent.parent.attribute('ID').value : sei
-      end
-
-      def extract_inclusive_namespaces
+      def extract_inclusive_namespaces(rexml_doc)
         element = REXML::XPath.first(
-          self,
+          rexml_doc,
           '//ec:InclusiveNamespaces',
           { 'ec' => RubySaml::XML::C14N }
         )
