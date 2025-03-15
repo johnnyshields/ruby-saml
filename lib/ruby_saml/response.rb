@@ -143,11 +143,8 @@ module RubySaml
         attributes = Attributes.new
 
         stmt_elements = xpath_from_signed_assertion('/a:AttributeStatement')
-        # puts stmt_elements.inspect
 
         stmt_elements.each do |stmt_element|
-          puts "\n\n\nMMMMMMMMMMMMMMMMM"
-          puts stmt_element.elements.inspect
           stmt_element.elements.each do |attr_element|
             if attr_element.name == "EncryptedAttribute"
               node = decrypt_attribute(attr_element.dup)
@@ -409,12 +406,10 @@ module RubySaml
 
       if collect_errors
         validations.each { |validation| send(validation) }
-        puts @errors.inspect
         @errors.empty?
       else
         validations.all? do |validation|
           v = send(validation)
-          puts "#{validation}: #{v}"
           v
         end
       end
@@ -834,10 +829,6 @@ module RubySaml
 
       use_original = sig_elements.size == 1 || decrypted_document.nil?
       doc = use_original ? document : decrypted_document
-      # TODO: Re-add this
-      # unless doc.processed
-      #  doc.cache_referenced_xml(@soft, check_malformed_doc: check_malformed_doc_enabled?)
-      # end
 
       doc
     end
@@ -888,37 +879,35 @@ module RubySaml
           fingerprint_alg: settings.idp_cert_fingerprint_algorithm
         }
 
-        # TODO: [ERRORS-REFACTOR] This needs to be cleaned-up
-        # TODO: [ERRORS-REFACTOR] Missing fingerprint should be part of #validate_document
-        # result = fingerprint && RubySaml::XML::SignedDocumentValidator.validate_document(doc.to_s, fingerprint, **opts)
-        # @errors << result if result.is_a?(String)
-        # valid = result.is_a?(TrueClass)
-        # if valid
-        if fingerprint && RubySaml::XML::SignedDocumentValidator.validate_document(doc.to_s, fingerprint, @errors, **opts)
-          if settings.security[:check_idp_cert_expiration] && RubySaml::Utils.is_cert_expired(idp_cert)
-            return append_error("IdP x509 certificate expired")
+        begin
+          if fingerprint
+            valid = XML::SignedDocumentValidator.validate_document(doc, fingerprint, **opts)
+            if valid && settings.security[:check_idp_cert_expiration] && RubySaml::Utils.is_cert_expired(idp_cert)
+              return append_error("IdP x509 certificate expired")
+            end
+          else
+            return append_error(error_msg)
           end
-        else
-          return append_error(error_msg)
+        rescue => e
+          return append_error(error_msg) # "#{error_msg}: #{e.message}")
         end
       else
         valid = false
         expired = false
         idp_certs[:signing].each do |idp_cert|
-          # TODO: [ERRORS-REFACTOR] This needs to be cleaned-up
-          # result = RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(doc.to_s, idp_cert, @errors)
-          # @errors.concat(result) if result.is_a?(Array)
-          # valid = result.is_a?(TrueClass)
-          valid = RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(doc.to_s, idp_cert, @errors)
-          next unless valid
-
-          if settings.security[:check_idp_cert_expiration] && RubySaml::Utils.is_cert_expired(idp_cert)
-            expired = true
+          begin
+            valid = XML::SignedDocumentValidator.validate_document_with_cert(doc, idp_cert)
+            if valid
+              if settings.security[:check_idp_cert_expiration] && RubySaml::Utils.is_cert_expired(idp_cert)
+                expired = true
+              end
+              # At least one certificate is valid, restore the old accumulated errors
+              @errors = old_errors
+              break
+            end
+          rescue => e
+            next
           end
-
-          # At least one certificate is valid, restore the old accumulated errors
-          @errors = old_errors
-          break
         end
 
         if expired
@@ -948,17 +937,14 @@ module RubySaml
     end
 
     def cached_signed_assertion
-      # TODO: Horrible, horrible
-      # xml = RubySaml::XML::SignedDocumentValidator.referenced_xml(doc_to_validate)
-      # empty_doc = Nokogiri::XML::Document.new
-      #
-      # return empty_doc if xml.nil? # when no signature/reference is found, return empty document
-
       empty_doc = Nokogiri::XML::Document.new
-      doc = RubySaml::XML.safe_load_nokogiri(doc_to_validate)
+      signed_element_id = XML::SignedDocumentValidator.extract_signed_element_id(doc_to_validate)
+      return empty_doc if signed_element_id.nil?
+
+      doc = Nokogiri::XML(doc_to_validate.to_s)
       root = doc.root
 
-      if root['ID'] != RubySaml::XML::SignedDocumentValidator.extract_signed_element_id(doc_to_validate)
+      if root['ID'] != signed_element_id
         return empty_doc
       end
 
@@ -1000,7 +986,6 @@ module RubySaml
     # @param subelt [String] The XPath pattern
     # @return [Array of Nokogiri::XML::Element] Return all matches
     #
-    # TODO: REVERT THIS
     def xpath_from_signed_assertion(subelt = nil)
       return if !subelt || subelt.empty?
 
