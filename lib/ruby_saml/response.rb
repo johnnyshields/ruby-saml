@@ -59,7 +59,7 @@ module RubySaml
       end
 
       @response = RubySaml::XML::Decoder.decode_message(response, @settings&.message_max_bytesize)
-      @document = RubySaml::XML::SignedDocument.new(@response, @errors)
+      @document = REXML::Document.new(@response)
 
       if assertion_encrypted?
         @decrypted_document = generate_decrypted_document
@@ -838,10 +838,10 @@ module RubySaml
         next unless confirmation_data_node
 
         attrs = confirmation_data_node.attributes
-        next if (attrs.include? "InResponseTo" and attrs['InResponseTo'] != in_response_to) ||
-                (attrs.include? "NotBefore" and now < (parse_time(confirmation_data_node, "NotBefore") - allowed_clock_drift)) ||
-                (attrs.include? "NotOnOrAfter" and now >= (parse_time(confirmation_data_node, "NotOnOrAfter") + allowed_clock_drift)) ||
-                (attrs.include? "Recipient" and !options[:skip_recipient_check] and settings and attrs['Recipient'] != settings.assertion_consumer_service_url)
+        next if (attrs['InResponseTo'] && attrs['InResponseTo'] != in_response_to) ||
+                (attrs['NotBefore'] && now < (parse_time(confirmation_data_node, "NotBefore") - allowed_clock_drift)) ||
+                (attrs['NotOnOrAfter'] && now >= (parse_time(confirmation_data_node, "NotOnOrAfter") + allowed_clock_drift)) ||
+                (attrs['Recipient'] && !options[:skip_recipient_check] && settings && attrs['Recipient'] != settings.assertion_consumer_service_url)
 
         valid_subject_confirmation = true
         break
@@ -907,20 +907,18 @@ module RubySaml
     def doc_to_validate
       # If the response contains the signature, and the assertion was encrypted, validate the original SAML Response
       # otherwise, review if the decrypted assertion contains a signature
+      signed_element_id = RubySaml::XML::SignedDocumentValidator.extract_signed_element_id(document)
+      return nil unless signed_element_id
+
       sig_elements = REXML::XPath.match(
         document,
         "/p:Response[@ID=$id]/ds:Signature",
         { "p" => RubySaml::XML::NS_PROTOCOL, "ds" => RubySaml::XML::DSIG },
-        { 'id' => document.signed_element_id }
+        { 'id' => signed_element_id }
       )
 
       use_original = sig_elements.size == 1 || decrypted_document.nil?
-      doc = use_original ? document : decrypted_document
-      unless doc.processed
-        doc.cache_referenced_xml(@soft, check_malformed_doc: check_malformed_doc_enabled?)
-      end
-
-      doc
+      use_original ? document : decrypted_document
     end
 
     # Validates the Signature
@@ -931,12 +929,14 @@ module RubySaml
       error_msg = "Invalid Signature on SAML Response"
 
       doc = doc_to_validate
+      signed_element_id = RubySaml::XML::SignedDocumentValidator.extract_signed_element_id(document)
+      return false unless signed_element_id
 
       sig_elements = REXML::XPath.match(
         document,
         "/p:Response[@ID=$id]/ds:Signature",
         { "p" => RubySaml::XML::NS_PROTOCOL, "ds" => RubySaml::XML::DSIG },
-        { 'id' => document.signed_element_id }
+        { 'id' => signed_element_id }
       )
 
       # Check signature node inside assertion
@@ -945,15 +945,15 @@ module RubySaml
           doc,
           "/p:Response/a:Assertion[@ID=$id]/ds:Signature",
           SAML_NAMESPACES.merge({ "ds" => RubySaml::XML::DSIG }),
-          { 'id' => doc.signed_element_id }
+          { 'id' => signed_element_id }
         )
       end
 
       if sig_elements.size != 1
         if sig_elements.empty?
-          append_error("Signed element id ##{doc.signed_element_id} is not found")
+          append_error("Signed element id ##{signed_element_id} is not found")
         else
-          append_error("Signed element id ##{doc.signed_element_id} is found more than once")
+          append_error("Signed element id ##{signed_element_id} is found more than once")
         end
         return append_error(error_msg)
       end
@@ -969,7 +969,7 @@ module RubySaml
           fingerprint_alg: settings.idp_cert_fingerprint_algorithm
         }
 
-        if fingerprint && doc.validate_document(fingerprint, @soft, opts)
+        if fingerprint && RubySaml::XML::SignedDocumentValidator.validate_document(doc, fingerprint, @errors, soft: @soft, **opts)
           if settings.security[:check_idp_cert_expiration] && RubySaml::Utils.is_cert_expired(idp_cert)
             return append_error("IdP x509 certificate expired")
           end
@@ -980,7 +980,7 @@ module RubySaml
         valid = false
         expired = false
         idp_certs[:signing].each do |idp_cert|
-          valid = doc.validate_document_with_cert(idp_cert, true)
+          valid = RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(doc, idp_cert, @errors, soft: @soft)
           next unless valid
 
           if settings.security[:check_idp_cert_expiration] && RubySaml::Utils.is_cert_expired(idp_cert)
@@ -1019,13 +1019,24 @@ module RubySaml
     end
 
     def cached_signed_assertion
-      xml = doc_to_validate.referenced_xml
       empty_doc = REXML::Document.new
 
+      xml = doc_to_validate
+      return empty_doc if xml.nil?
+
+      puts "HEREEE"
+      puts xml.inspect
+      xml = REXML::Document.new(xml) if xml.is_a?(String)
+      xml = RubySaml::XML::SignedDocument.get_referenced_xml(xml).last
       return empty_doc if xml.nil? # when no signature/reference is found, return empty document
 
-      root = REXML::Document.new(xml).root
-      if root["ID"] != doc_to_validate.signed_element_id
+      puts xml.inspect
+      xml = REXML::Document.new(xml) if xml.is_a?(String)
+      root = xml.root
+      signed_element_id = RubySaml::XML::SignedDocumentValidator.extract_signed_element_id(xml)
+      return nil unless signed_element_id
+
+      if root["ID"] != signed_element_id
         return empty_doc
       end
 
@@ -1090,7 +1101,7 @@ module RubySaml
     #
     def generate_decrypted_document
       noko = RubySaml::XML::Decryptor.decrypt_document(document.to_s, settings&.get_sp_decryption_keys)
-      RubySaml::XML::SignedDocument.new(noko.to_xml(save_with: Nokogiri::XML::Node::SaveOptions::AS_XML))
+      REXML::Document.new(noko.to_xml(save_with: Nokogiri::XML::Node::SaveOptions::AS_XML))
     end
 
     # Parse the attribute of a given node in Time format

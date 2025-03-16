@@ -41,7 +41,7 @@ module RubySaml
 
       @options = options
       @response = RubySaml::XML::Decoder.decode_message(response, @settings&.message_max_bytesize)
-      @document = RubySaml::XML::SignedDocument.new(@response)
+      @document = REXML::Document.new(@response)
       super()
     end
 

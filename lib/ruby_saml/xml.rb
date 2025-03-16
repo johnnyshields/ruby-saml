@@ -55,7 +55,7 @@ module RubySaml
     # @param check_malformed_doc [Boolean] check_malformed_doc Enable or Disable the check for malformed XML
     # @return [Nokogiri::XML] The nokogiri document
     # @raise [ValidationError] If there was a problem loading the SAML Message XML
-    def self.safe_load_nokogiri(document, check_malformed_doc: true)
+    def safe_load_nokogiri(document, check_malformed_doc: true)
       doc_str = document.to_s
       raise StandardError.new('Dangerous XML detected. No Doctype nodes allowed') if doc_str.include?('<!DOCTYPE')
 
@@ -73,6 +73,16 @@ module RubySaml
 
       xml
     end
+
+    # def clone_node(node)
+    #   if node.is_a?(Nokogiri::XML::Node)
+    #     node.to_xml(save_with: Nokogiri::XML::Node::SaveOptions::AS_XML)
+    #   end
+    #
+    #   Nokogiri::XML(doc_str) do |config|
+    #     config.options = NOKOGIRI_OPTIONS
+    #   end
+    # end
 
     # Lookup XML canonicalization algorithm.
     # @api private
@@ -145,4 +155,5 @@ require 'ruby_saml/xml/decoder'
 require 'ruby_saml/xml/decryptor'
 require 'ruby_saml/xml/document_signer'
 require 'ruby_saml/xml/signed_document'
+require 'ruby_saml/xml/signed_document_validator'
 require 'ruby_saml/xml/deprecated'
