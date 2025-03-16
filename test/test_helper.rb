@@ -419,32 +419,27 @@ class Minitest::Test
     inflated
   end
 
-  SCHEMA_DIR = File.expand_path(File.join(__FILE__, '../../lib/ruby_saml/schemas'))
-
-  #
-  # validate an xml document against the given schema
-  #
+  # Validate an xml document against the given schema
   def validate_xml!(document, schema)
-    Dir.chdir(SCHEMA_DIR) do
-      xsd = if schema.is_a? Nokogiri::XML::Schema
-              schema
-            else
-              Nokogiri::XML::Schema(File.read(schema))
-            end
+    xsd = if schema.is_a? Nokogiri::XML::Schema
+            schema
+          else
+            path = File.expand_path(File.join(__FILE__, '../../lib/ruby_saml/schemas', schema))
+            Nokogiri::XML::Schema(File.read(path))
+          end
 
-      xml = if document.is_a? Nokogiri::XML::Document
-              document
-            else
-              Nokogiri::XML(document, &:strict)
-            end
+    xml = if document.is_a? Nokogiri::XML::Document
+            document
+          else
+            Nokogiri::XML(document, &:strict)
+          end
 
-      result = xsd.validate(xml)
+    result = xsd.validate(xml)
 
-      if result.length != 0
-        raise "Schema validation failed! XSD validation errors: #{result.join(", ")}"
-      else
-        true
-      end
+    if result.length != 0
+      raise "Schema validation failed! XSD validation errors: #{result.join(", ")}"
+    else
+      true
     end
   end
 
