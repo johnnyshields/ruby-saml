@@ -142,8 +142,6 @@ module RubySaml
     def get_algorithm_attr(element)
       if element.is_a?(Nokogiri::XML::Element)
         element['Algorithm']
-      elsif element.is_a?(REXML::Element)
-        element.attribute('Algorithm').value
       elsif element
         element
       end
@@ -154,6 +152,6 @@ end
 require 'ruby_saml/xml/decoder'
 require 'ruby_saml/xml/decryptor'
 require 'ruby_saml/xml/document_signer'
-require 'ruby_saml/xml/signed_document'
+require 'ruby_saml/xml/signed_document_info'
 require 'ruby_saml/xml/signed_document_validator'
 require 'ruby_saml/xml/deprecated'

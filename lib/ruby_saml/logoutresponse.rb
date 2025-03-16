@@ -41,7 +41,7 @@ module RubySaml
 
       @options = options
       @response = RubySaml::XML::Decoder.decode_message(response, @settings&.message_max_bytesize)
-      @document = REXML::Document.new(@response)
+      @document = RubySaml::XML.safe_load_nokogiri(@response)
       super()
     end
 
@@ -60,22 +60,17 @@ module RubySaml
     # @return [String|nil] Gets the InResponseTo attribute from the Logout Response if exists.
     #
     def in_response_to
-      @in_response_to ||= begin
-        node = REXML::XPath.first(
-          document,
-          "/p:LogoutResponse",
-          { "p" => RubySaml::XML::NS_PROTOCOL }
-        )
-        node.nil? ? nil : node.attributes['InResponseTo']
-      end
+      @in_response_to ||= document.at_xpath(
+        "/p:LogoutResponse",
+        { "p" => RubySaml::XML::NS_PROTOCOL }
+      )&.[]('InResponseTo')
     end
 
     # @return [String] Gets the Issuer from the Logout Response.
     #
     def issuer
       @issuer ||= begin
-        node = REXML::XPath.first(
-          document,
+        node = document.at_xpath(
           "/p:LogoutResponse/a:Issuer",
           { "p" => RubySaml::XML::NS_PROTOCOL, "a" => RubySaml::XML::NS_ASSERTION }
         )
@@ -86,16 +81,15 @@ module RubySaml
     # @return [String] Gets the StatusCode from a Logout Response.
     #
     def status_code
-      @status_code ||= begin
-        node = REXML::XPath.first(document, "/p:LogoutResponse/p:Status/p:StatusCode", { "p" => RubySaml::XML::NS_PROTOCOL })
-        node.nil? ? nil : node.attributes["Value"]
-      end
+      @status_code ||= document.at_xpath(
+        "/p:LogoutResponse/p:Status/p:StatusCode",
+        { "p" => RubySaml::XML::NS_PROTOCOL }
+      )&.[]('Value')
     end
 
     def status_message
       @status_message ||= begin
-        node = REXML::XPath.first(
-          document,
+        node = document.at_xpath(
           "/p:LogoutResponse/p:Status/p:StatusMessage",
           { "p" => RubySaml::XML::NS_PROTOCOL }
         )

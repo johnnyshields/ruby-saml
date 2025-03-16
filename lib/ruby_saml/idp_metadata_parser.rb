@@ -161,7 +161,7 @@ module RubySaml
     end
 
     def parse_to_idp_metadata_array(idp_metadata, options = {})
-      @document = Nokogiri::XML(idp_metadata)
+      @document = Nokogiri::XML(idp_metadata) # TODO: RubySaml::XML.safe_load_nokogiri
       @options = options
 
       idpsso_descriptors = self.class.get_idps(@document, options[:entity_id])

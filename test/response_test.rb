@@ -1378,7 +1378,10 @@ class RubySamlTest < Minitest::Test
         $evalled = nil
         malicious_response_document = fixture('response_eval', false)
         malicious_response = RubySaml::Response.new(malicious_response_document)
-        malicious_response.send(:xpath_first_from_signed_assertion)
+        begin
+          malicious_response.send(:xpath_first_from_signed_assertion)
+        rescue RubySaml::ValidationError # TODO: This should be a more specific error
+        end
         assert_nil $evalled
       end
     end
@@ -1566,9 +1569,8 @@ class RubySamlTest < Minitest::Test
         it "is not possible to decrypt the assertion if no private key" do
           response = RubySaml::Response.new(signed_message_encrypted_unsigned_assertion, settings: settings)
 
-          encrypted_assertion_node = REXML::XPath.first(
-            response.document,
-            "(/p:Response/EncryptedAssertion)|(/p:Response/a:EncryptedAssertion)",
+          encrypted_assertion_node = response.document.at_xpath(
+            "/p:Response/EncryptedAssertion | /p:Response/a:EncryptedAssertion",
             { "p" => RubySaml::XML::NS_PROTOCOL, "a" => RubySaml::XML::NS_ASSERTION }
           )
           response.settings.private_key = nil
@@ -1590,9 +1592,8 @@ class RubySamlTest < Minitest::Test
         it "is possible to decrypt the assertion if private key" do
           response = RubySaml::Response.new(signed_message_encrypted_unsigned_assertion, settings: settings)
 
-          encrypted_assertion_node = REXML::XPath.first(
-            response.document,
-            "(/p:Response/EncryptedAssertion)|(/p:Response/a:EncryptedAssertion)",
+          encrypted_assertion_node = response.document.at_xpath(
+            "/p:Response/EncryptedAssertion | /p:Response/a:EncryptedAssertion",
             { "p" => RubySaml::XML::NS_PROTOCOL, "a" => RubySaml::XML::NS_ASSERTION }
           )
           decrypted = RubySaml::XML::Decryptor.decrypt_assertion(encrypted_assertion_node, settings.get_sp_decryption_keys)
@@ -1615,9 +1616,8 @@ class RubySamlTest < Minitest::Test
           }
           response = RubySaml::Response.new(signed_message_encrypted_unsigned_assertion, settings: settings)
 
-          encrypted_assertion_node = REXML::XPath.first(
-            response.document,
-            "(/p:Response/EncryptedAssertion)|(/p:Response/a:EncryptedAssertion)",
+          encrypted_assertion_node = response.document.at_xpath(
+            "/p:Response/EncryptedAssertion | /p:Response/a:EncryptedAssertion",
             { "p" => RubySaml::XML::NS_PROTOCOL, "a" => RubySaml::XML::NS_ASSERTION }
           )
           decrypted = RubySaml::XML::Decryptor.decrypt_assertion(encrypted_assertion_node, settings.get_sp_decryption_keys)
@@ -1630,9 +1630,8 @@ class RubySamlTest < Minitest::Test
           resp = read_response('response_with_retrieval_method.xml')
           response = RubySaml::Response.new(resp, settings: settings)
 
-          encrypted_assertion_node = REXML::XPath.first(
-            response.document,
-            "(/p:Response/EncryptedAssertion)|(/p:Response/a:EncryptedAssertion)",
+          encrypted_assertion_node = response.document.at_xpath(
+            "/p:Response/EncryptedAssertion | /p:Response/a:EncryptedAssertion",
             { "p" => RubySaml::XML::NS_PROTOCOL, "a" => RubySaml::XML::NS_ASSERTION }
           )
           decrypted = RubySaml::XML::Decryptor.decrypt_assertion(encrypted_assertion_node, settings.get_sp_decryption_keys)
@@ -1649,9 +1648,9 @@ class RubySamlTest < Minitest::Test
         it "is possible to decrypt the assertion if private key but no saml namespace on the Assertion Element that is inside the EncryptedAssertion" do
           unsigned_message_encrypted_assertion_without_saml_namespace = read_response('unsigned_message_encrypted_assertion_without_saml_namespace.xml.base64')
           response = RubySaml::Response.new(unsigned_message_encrypted_assertion_without_saml_namespace, settings: settings)
-          encrypted_assertion_node = REXML::XPath.first(
-            response.document,
-            "(/p:Response/EncryptedAssertion)|(/p:Response/a:EncryptedAssertion)",
+
+          encrypted_assertion_node = response.document.at_xpath(
+            "/p:Response/EncryptedAssertion | /p:Response/a:EncryptedAssertion",
             { "p" => RubySaml::XML::NS_PROTOCOL, "a" => RubySaml::XML::NS_ASSERTION }
           )
           decrypted = RubySaml::XML::Decryptor.decrypt_assertion(encrypted_assertion_node, settings.get_sp_decryption_keys)
