@@ -18,7 +18,7 @@ module RubySaml
       end
 
       # Validates the subject_node, which is the signed part of the document
-      def validate_document(idp_cert_fingerprint = true, options = {})
+      def validate_document(idp_cert_fingerprint, options = {})
         # Get certificate from document
         if certificate_object
           # Calculate fingerprint using specified algorithm
@@ -37,7 +37,7 @@ module RubySaml
         elsif options[:cert]
           cert = options[:cert]
         else
-          raise RubySaml::ValidationError.new('Certificate element missing in response (ds:X509Certificate) and no cert provided at settings')
+          raise RubySaml::ValidationError.new('Certificate element missing in response (ds:X509Certificate) and no cert provided in settings')
         end
 
         validate_signature(cert)

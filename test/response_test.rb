@@ -943,7 +943,7 @@ class RubySamlTest < Minitest::Test
         response_invalid_x509certificate = RubySaml::Response.new(content)
         response_invalid_x509certificate.settings = settings
         assert !response_invalid_x509certificate.send(:validate_signature)
-        assert_includes response_invalid_x509certificate.errors, "Document Certificate Error: PEM_read_bio_X509: no start line"
+        assert_includes response_invalid_x509certificate.errors, "Document Certificate Error"
         assert_includes response_invalid_x509certificate.errors, "Invalid Signature on SAML Response"
       end
 

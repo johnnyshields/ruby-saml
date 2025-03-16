@@ -800,7 +800,7 @@ module RubySaml
       # If the response contains the signature, and the assertion was encrypted, validate the original SAML Response
       # otherwise, review if the decrypted assertion contains a signature
       subject_id = RubySaml::XML::SignedDocumentValidator.subject_id(document)
-      return nil unless subject_id
+      return decrypted_document unless subject_id
 
       sig_elements = document.xpath(
         "/p:Response[@ID=$id]/ds:Signature",
@@ -858,7 +858,7 @@ module RubySaml
           fingerprint_alg: settings.idp_cert_fingerprint_algorithm
         }
 
-        if fingerprint && RubySaml::XML::SignedDocumentValidator.validate_document(doc, fingerprint, @errors, soft: @soft, **opts)
+        if fingerprint && RubySaml::XML::SignedDocumentValidator.validate_document(doc, fingerprint, @errors, soft: @soft, **opts).is_a?(TrueClass) # TODO: DANGEROUS
           if settings.security[:check_idp_cert_expiration] && RubySaml::Utils.is_cert_expired(idp_cert)
             return append_error("IdP x509 certificate expired")
           end
@@ -869,7 +869,7 @@ module RubySaml
         valid = false
         expired = false
         idp_certs[:signing].each do |idp_cert|
-          valid = RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(doc, idp_cert, @errors, soft: @soft)
+          valid = RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(doc, idp_cert, @errors, soft: @soft).is_a?(TrueClass) # TODO: DANGEROUS
           next unless valid
 
           if settings.security[:check_idp_cert_expiration] && RubySaml::Utils.is_cert_expired(idp_cert)
@@ -911,29 +911,27 @@ module RubySaml
       empty_doc = Nokogiri::XML::Document.new
 
       xml = doc_to_validate
-      dup = doc_to_validate.to_s.dup
       return empty_doc if xml.nil?
 
-      xml = RubySaml::XML::SignedDocumentValidator.subject_node(xml)
+      subject = RubySaml::XML::SignedDocumentValidator.subject_node(xml)
       return empty_doc if xml.nil? # when no signature/reference is found, return empty document
 
-      root = xml.document.root
-      subject_id = RubySaml::XML::SignedDocumentValidator.subject_id(dup)
+      subject_id = RubySaml::XML::SignedDocumentValidator.subject_id(xml)
       return nil unless subject_id
 
-      if root["ID"] != subject_id
+      if subject['ID'] != subject_id
         return empty_doc
       end
 
       assertion = empty_doc
-      if root.name == "Response"
-        if (result = root.at_xpath("a:Assertion", {"a" => RubySaml::XML::NS_ASSERTION}))
+      if subject.name == "Response"
+        if (result = subject.at_xpath("a:Assertion", {"a" => RubySaml::XML::NS_ASSERTION}))
           assertion = result
-        elsif (result = root.at_xpath("a:EncryptedAssertion", {"a" => RubySaml::XML::NS_ASSERTION}))
+        elsif (result = subject.at_xpath("a:EncryptedAssertion", {"a" => RubySaml::XML::NS_ASSERTION}))
           assertion = RubySaml::XML::Decryptor.decrypt_assertion(result, settings&.get_sp_decryption_keys)
         end
-      elsif root.name == "Assertion"
-        assertion = root
+      elsif subject.name == "Assertion"
+        assertion = subject
       end
 
       assertion
