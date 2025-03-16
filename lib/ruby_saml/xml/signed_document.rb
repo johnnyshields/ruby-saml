@@ -46,9 +46,9 @@ module RubySaml
             raise RubySaml::ValidationError.new("Fingerprint mismatch")
           end
 
-          base64_cert = Base64.encode64(cert.to_der)
+          base64_cert = Base64.strict_encode64(cert.to_der)
         elsif options[:cert]
-          base64_cert = Base64.encode64(options[:cert].to_pem)
+          base64_cert = Base64.strict_encode64(options[:cert].to_pem)
         else
           raise RubySaml::ValidationError.new("Certificate element missing in response (ds:X509Certificate) and no cert provided in settings")
         end
@@ -80,7 +80,7 @@ module RubySaml
           end
         end
 
-        encoded_idp_cert = Base64.encode64(idp_cert.to_pem)
+        encoded_idp_cert = Base64.strict_encode64(idp_cert.to_pem)
         validate_signature(rexml_doc, encoded_idp_cert)
       end
 
