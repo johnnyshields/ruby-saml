@@ -69,7 +69,7 @@ module RubySaml
     # @return [String] Gets the Issuer from the Logout Response.
     #
     def issuer
-      @issuer ||=document.at_xpath(
+      @issuer ||= document.at_xpath(
         "/p:LogoutResponse/a:Issuer",
         { "p" => RubySaml::XML::NS_PROTOCOL, "a" => RubySaml::XML::NS_ASSERTION }
       )&.text

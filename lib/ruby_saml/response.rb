@@ -187,7 +187,7 @@ module RubySaml
       @expires_at ||= begin
                         node = xpath_first_from_signed_assertion('/a:AuthnStatement')
                         parse_time(node, "SessionNotOnOrAfter") if node
-                      end
+      end
     end
 
     # Gets the AuthnInstant from the AuthnStatement.
@@ -241,7 +241,7 @@ module RubySaml
 
                            code
                          end
-                       end
+      end
     end
 
     # @return [String] the StatusMessage value from a SAML Response.
@@ -254,7 +254,7 @@ module RubySaml
                             )
 
                             nodes.first&.text if nodes.size == 1
-                          end
+      end
     end
 
     # Gets the Condition Element of the SAML Response if exists.
@@ -303,7 +303,7 @@ module RubySaml
 
                      nodes = issuer_response_nodes + issuer_assertion_nodes
                      nodes.map(&:text).reject(&:empty?).uniq
-                   end
+      end
     end
 
     # @return [String|nil] The InResponseTo attribute from the SAML Response.
@@ -355,7 +355,7 @@ module RubySaml
       @assertion_id ||= begin
                           node = xpath_first_from_signed_assertion('')
                           node.nil? ? nil : node['ID']
-                        end
+      end
     end
 
     private
@@ -761,9 +761,9 @@ module RubySaml
         next unless confirmation_data_node
 
         next if (confirmation_data_node['InResponseTo'] && confirmation_data_node['InResponseTo'] != in_response_to) ||
-          (confirmation_data_node['NotBefore'] && now < (parse_time(confirmation_data_node, "NotBefore") - allowed_clock_drift)) ||
-          (confirmation_data_node['NotOnOrAfter'] && now >= (parse_time(confirmation_data_node, "NotOnOrAfter") + allowed_clock_drift)) ||
-          (confirmation_data_node['Recipient'] && !options[:skip_recipient_check] && settings && confirmation_data_node['Recipient'] != settings.assertion_consumer_service_url)
+                (confirmation_data_node['NotBefore'] && now < (parse_time(confirmation_data_node, "NotBefore") - allowed_clock_drift)) ||
+                (confirmation_data_node['NotOnOrAfter'] && now >= (parse_time(confirmation_data_node, "NotOnOrAfter") + allowed_clock_drift)) ||
+                (confirmation_data_node['Recipient'] && !options[:skip_recipient_check] && settings && confirmation_data_node['Recipient'] != settings.assertion_consumer_service_url)
 
         valid_subject_confirmation = true
         break

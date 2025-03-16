@@ -2,6 +2,7 @@
 
 module RubySaml
   module XML
+    # Represents the information extracted from a signed document.
     class SignedDocumentInfo
       attr_reader :noko,
                   :check_malformed_doc
@@ -22,16 +23,10 @@ module RubySaml
         # Get certificate from document
         if certificate_object
           # Calculate fingerprint using specified algorithm
-          if options[:fingerprint_alg]
-            fingerprint = certificate_fingerprint(options[:fingerprint_alg])
-          else
-            fingerprint = certificate_fingerprint('SHA256')
-          end
+          fingerprint = certificate_fingerprint(options[:fingerprint_alg] || 'SHA256')
 
           # Check cert matches registered idp cert fingerprint
-          if fingerprint != idp_cert_fingerprint.gsub(/[^a-zA-Z0-9]/, '').downcase
-            raise RubySaml::ValidationError.new('Fingerprint mismatch')
-          end
+          raise RubySaml::ValidationError.new('Fingerprint mismatch') if fingerprint != idp_cert_fingerprint.gsub(/[^a-zA-Z0-9]/, '').downcase
 
           cert = certificate_object
         elsif options[:cert]
@@ -43,11 +38,9 @@ module RubySaml
         validate_signature(cert)
       end
 
-      def validate_document_with_cert(idp_cert = true)
+      def validate_document_with_cert(idp_cert)
         # Check saml response cert matches provided idp cert
-        if certificate_object&.to_pem&.!=(idp_cert.to_pem)
-          raise RubySaml::ValidationError.new('Certificate of the Signature element does not match provided certificate')
-        end
+        raise RubySaml::ValidationError.new('Certificate of the Signature element does not match provided certificate') if certificate_object&.to_pem&.!=(idp_cert.to_pem)
 
         validate_signature(idp_cert)
       end
@@ -55,9 +48,7 @@ module RubySaml
       def validate_signature(cert)
         # TODO: Remove this
         # Get certificate object
-        if cert.is_a?(String)
-          cert = OpenSSL::X509::Certificate.new(Base64.decode64(cert))
-        end
+        cert = OpenSSL::X509::Certificate.new(Base64.decode64(cert)) if cert.is_a?(String)
 
         # Compare digest
         calculated_digest = digest_algorithm.digest(canonicalized_subject)
@@ -65,9 +56,7 @@ module RubySaml
         # puts "digest_value: #{digest_value.bytes}"
         # puts "subject" + canonicalized_subject.inspect
         # puts "\n\n\n\n\n\n"
-        unless calculated_digest == digest_value
-          raise RubySaml::ValidationError.new('Digest mismatch')
-        end
+        raise RubySaml::ValidationError.new('Digest mismatch') unless calculated_digest == digest_value
 
         # puts "signature_hash_algorithm: #{signature_hash_algorithm}"
         # puts "signature_value: #{signature_value.bytes}"
@@ -126,6 +115,7 @@ module RubySaml
       def subject_id
         id = uri_from_reference_node || signature_node.parent&.[]('ID')
         return id unless !id || id.empty?
+
         raise RubySaml::ValidationError.new('No signed subject ID found')
       end
 
@@ -186,6 +176,7 @@ module RubySaml
       # @return [OpenSSL::X509::Certificate] The certificate
       def certificate_object
         return unless certificate_text
+
         OpenSSL::X509::Certificate.new(certificate_text)
       rescue OpenSSL::X509::CertificateError => _e
         # TODO: include underlying error
@@ -206,12 +197,10 @@ module RubySaml
       # Extract inclusive namespaces from the document
       # @return [Array<String>, nil] The inclusive namespaces
       def inclusive_namespaces
-        @inclusive_namespaces ||= begin
-          noko.at_xpath(
-            '//ec:InclusiveNamespaces',
-            { 'ec' => RubySaml::XML::C14N }
-          )&.[]('PrefixList')&.split
-        end
+        @inclusive_namespaces ||= noko.at_xpath(
+          '//ec:InclusiveNamespaces',
+          { 'ec' => RubySaml::XML::C14N }
+        )&.[]('PrefixList')&.split
       end
 
       private
@@ -219,10 +208,8 @@ module RubySaml
       # Get the ds:Signature element from the document
       # @return [Nokogiri::XML::Element] The Signature element
       def signature_node
-        @signature_node ||= begin
-          noko.at_xpath('//ds:Signature', { 'ds' => RubySaml::XML::DSIG }) ||
-            (raise RubySaml::ValidationError.new('No Signature node found'))
-        end
+        @signature_node ||= noko.at_xpath('//ds:Signature', { 'ds' => RubySaml::XML::DSIG }) ||
+                            (raise RubySaml::ValidationError.new('No Signature node found'))
       end
 
       # Get the ds:SignedInfo element from the document
@@ -246,7 +233,7 @@ module RubySaml
 
       def canon_algorithm_from_transforms
         transforms = reference_node.xpath('./ds:Transforms/ds:Transform', { 'ds' => RubySaml::XML::DSIG })
-        transform_element = transforms.reverse.detect { |transform_element| transform_element['Algorithm'] }
+        transform_element = transforms.reverse.detect { |el| el['Algorithm'] }
         RubySaml::XML.canon_algorithm(transform_element, default: false)
       end
 

@@ -115,7 +115,7 @@ module RubySaml
       document.xpath(
         "/p:LogoutRequest/p:SessionIndex",
         { "p" => RubySaml::XML::NS_PROTOCOL }
-      ).map { |node| node.text }
+      ).map(&:text)
     end
 
     private

@@ -5,6 +5,8 @@ require 'ruby_saml/utils'
 
 module RubySaml
   module XML
+    # Wrapper for the SignedDocumentInfo class.
+    # TODO: This should be refactored and removed
     module SignedDocumentValidator
       extend self
 
@@ -13,6 +15,7 @@ module RubySaml
       rescue RubySaml::ValidationError => e
         errors << e.message
         raise e unless soft
+
         errors # TODO: Return false??
       end
 

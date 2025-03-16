@@ -1,7 +1,16 @@
 # frozen_string_literal: true
 
 module RubySaml
+  # Mixin for memoizing methods
   module Memoizable
+    # Creates a memoized method
+    #
+    # @param method_name [Symbol] the name of the method to memoize
+    # @param original_method [Symbol, nil] the original method to memoize (defaults to method_name)
+    def self.included(base)
+      base.extend(ClassMethods)
+    end
+
     private
 
     # Memoizes the result of a block using the given name as the cache key
@@ -16,14 +25,7 @@ module RubySaml
       instance_variable_set(cache_key, yield)
     end
 
-    # Creates a memoized method
-    #
-    # @param method_name [Symbol] the name of the method to memoize
-    # @param original_method [Symbol, nil] the original method to memoize (defaults to method_name)
-    def self.included(base)
-      base.extend(ClassMethods)
-    end
-
+    # Class methods for memoization
     module ClassMethods
       # Defines multiple memoized methods
       #
