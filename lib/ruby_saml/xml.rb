@@ -49,6 +49,16 @@ module RubySaml
     NOKOGIRI_OPTIONS = Nokogiri::XML::ParseOptions::STRICT |
                        Nokogiri::XML::ParseOptions::NONET
 
+    # TODO: safe_load_message (rename safe_load_nokogiri --> safe_load_xml)
+    # def safe_load_message(message, check_malformed_doc: true)
+    #   message = Decoder.decode(message)
+    #   begin
+    #     safe_load_nokogiri(message, check_malformed_doc: check_malformed_doc)
+    #   rescue RubySaml::Errors::XMLLoadError
+    #     Nokogiri::XML::Document.new
+    #   end
+    # end
+
     # Safely load the SAML Message XML.
     # @param document [String | Nokogiri::XML::Document] The message to be loaded
     # @param check_malformed_doc [Boolean] check_malformed_doc Enable or Disable the check for malformed XML
