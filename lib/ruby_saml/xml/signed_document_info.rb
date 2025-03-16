@@ -3,48 +3,124 @@
 module RubySaml
   module XML
     class SignedDocumentInfo
-      extend self
+      attr_reader :noko,
+                  :check_malformed_doc
 
-      def extract_body_node(noko, check_malformed_doc: true)
-        unless noko.is_a?(Nokogiri::XML::Document)
-          begin
-            noko = RubySaml::XML.safe_load_nokogiri(document.to_s, check_malformed_doc: check_malformed_doc)
-          rescue StandardError => e
-            raise RubySaml::ValidationError.new("XML load failed: #{e.message}")
-          end
-        end
+      # Represents the information extracted from a signed document.
+      # Intended to avoid signature wrapping attacks.
+      #
+      # @param noko [Nokogiri::XML] The XML document to validate
+      # @param check_malformed_doc [Boolean] Whether to check for malformed documents
+      def initialize(noko, check_malformed_doc: true)
+        @noko = noko
+        @check_malformed_doc = check_malformed_doc
+      end
 
-        signature_node = noko.at_xpath(
-          '//ds:Signature',
+      # Get the signature hash algorithm
+      # @return [OpenSSL::Digest] The signature hash algorithm
+      def signature_hash_algorithm
+        sig_alg_value = signed_info_node.at_xpath(
+          './ds:SignatureMethod',
           { 'ds' => RubySaml::XML::DSIG }
         )
-        return if signature_node.nil?
+        RubySaml::XML.hash_algorithm(sig_alg_value)
+      end
 
-        signed_info_node = signature_node.at_xpath('./ds:SignedInfo', 'ds' => RubySaml::XML::DSIG)
-        canon_algorithm = extract_canon_algorithm(signed_info_node)
-        signed_info_node = signed_info_node.canonicalize(canon_algorithm)
-        signed_info_node = Nokogiri::XML(signed_info_node.to_xml(save_with: Nokogiri::XML::Node::SaveOptions::AS_XML)).root
+      # Get the decoded SignatureValue
+      # @return [String] The decoded signature value
+      def signature_value
+        base64_signature = signature_node.at_xpath(
+          './ds:SignatureValue',
+          { 'ds' => RubySaml::XML::DSIG }
+        )&.text&.strip
+        raise RubySaml::ValidationError.new('No Signature Value found') if base64_signature.nil?
 
-        # Remove the signature element from the document
-        signature_node.remove
+        Base64.decode64(base64_signature)
+      end
 
-        # check digests
-        reference_node = signed_info_node.at_xpath('./ds:Reference', { 'ds' => RubySaml::XML::DSIG })
-        return if reference_node.nil?
+      # Get the canonicalized SignedInfo element
+      # @return [String] The canonicalized SignedInfo element
+      def canonicalized_signed_info
+        signed_info_node.canonicalize(canon_algorithm_from_signed_info)
+      end
 
-        signed_element_id = extract_uri(reference_node) || signature_node.parent['ID']
-        body_node = noko.at_xpath("//*[@ID='#{signed_element_id}']")
-        return if body_node.nil?
+      # Get the Reference node
+      # @return [Nokogiri::XML::Element] The Reference node
+      def reference_node
+        signed_info_node.at_xpath('./ds:Reference', { 'ds' => RubySaml::XML::DSIG }) ||
+          (raise RubySaml::ValidationError.new('No Reference node found'))
+      end
 
-        canon_algorithm = process_transforms(reference_node, canon_algorithm)
-        inclusive_namespaces = extract_inclusive_namespaces(noko)
+      # Get the canonicalized subject node (the node being signed)
+      # @return [String] The canonicalized subject
+      def canonicalized_subject
+        subject_node = noko.at_xpath("//*[@ID='#{subject_id}']") ||
+          (raise RubySaml::ValidationError.new('No subject node found'))
+        subject_node.canonicalize(canon_algorithm, inclusive_namespaces)
+      end
 
-        [body_node.canonicalize(canon_algorithm, inclusive_namespaces), signature_node]
+      # Get the digest algorithm
+      # @return [OpenSSL::Digest] The digest algorithm
+      def digest_algorithm
+        digest_method_node = reference_node.at_xpath(
+          './ds:DigestMethod',
+          { 'ds' => RubySaml::XML::DSIG }
+        )
+        RubySaml::XML.hash_algorithm(digest_method_node)
+      end
+
+      # Get the decoded DigestValue
+      # @return [String] The decoded digest value
+      def digest_value
+        encoded_digest = reference_node.at_xpath(
+          './ds:DigestValue',
+          { 'ds' => RubySaml::XML::DSIG }
+        )&.text&.strip
+        raise RubySaml::ValidationError.new('No DigestValue found') if encoded_digest.nil?
+
+        Base64.decode64(encoded_digest)
+      end
+
+      # Get the ID of the signed element
+      # @return [String] The ID of the signed element
+      def subject_id
+        id = uri_from_reference_node || signature_node.parent['ID']
+        return id unless !id || id.empty?
+        raise RubySaml::ValidationError.new('No signed subject ID found')
+      end
+
+      # Extract inclusive namespaces from the document
+      # @return [Array<String>, nil] The inclusive namespaces
+      def inclusive_namespaces
+        noko.at_xpath(
+          '//ec:InclusiveNamespaces',
+          { 'ec' => RubySaml::XML::C14N }
+        )&.[]('PrefixList')&.split
       end
 
       private
 
-      def extract_canon_algorithm(signed_info_node)
+      # Get the ds:Signature element from the document
+      # @return [Nokogiri::XML::Element] The Signature element
+      def signature_node
+        noko.at_xpath(
+          '//ds:Signature',
+          { 'ds' => RubySaml::XML::DSIG }
+        ) || (raise RubySaml::ValidationError.new('No Signature node found'))
+      end
+
+      # Get the ds:SignedInfo element from the document
+      # @return [Nokogiri::XML::Element] The SignedInfo element
+      def signed_info_node
+        signature_node.at_xpath('./ds:SignedInfo', 'ds' => RubySaml::XML::DSIG) ||
+          (raise RubySaml::ValidationError.new('No SignedInfo node found'))
+      end
+
+      def canon_algorithm
+        canon_algorithm_from_transforms || canon_algorithm_from_signed_info
+      end
+
+      def canon_algorithm_from_signed_info
         canon_method_node = signed_info_node.at_xpath(
           './ds:CanonicalizationMethod',
           { 'ds' => RubySaml::XML::DSIG }
@@ -52,127 +128,15 @@ module RubySaml
         RubySaml::XML.canon_algorithm(canon_method_node)
       end
 
-      def process_transforms(reference_node, canon_algorithm)
+      def canon_algorithm_from_transforms
         transforms = reference_node.xpath('./ds:Transforms/ds:Transform', { 'ds' => RubySaml::XML::DSIG })
-
-        # TODO: This should just be a reverse_each
-        transforms.each do |transform_element|
-          algorithm_attr = transform_element['Algorithm']
-          next unless algorithm_attr
-
-          canon_algorithm = RubySaml::XML.canon_algorithm(transform_element, default: false)
-        end
-
-        canon_algorithm
+        transform_element = transforms.reverse.detect {|transform_element| transform_element['Algorithm'] }
+        RubySaml::XML.canon_algorithm(transform_element, default: false)
       end
 
-      # def extract_inclusive_namespaces(doc)
-      #   element = doc.at_xpath(
-      #     '//ec:InclusiveNamespaces',
-      #     { 'ec' => RubySaml::XML::C14N }
-      #   )
-      #   return unless element
-      #
-      #   element['PrefixList']&.split
-      # end
-
-      def extract_uri(reference_node)
-        uri = reference_node&.[]('URI')
-        return nil unless uri
-
-        uri = uri[1..] if uri.start_with?('#')
-        uri unless uri.empty?
-      end
-    end
-  end
-end
-
-
-
-# frozen_string_literal: true
-
-module RubySaml
-  module XML
-    module ReferencedNodeExtractor
-      extend self
-
-      def extract_body_node(noko, check_malformed_doc: true)
-        unless noko.is_a?(Nokogiri::XML::Document)
-          begin
-            noko = RubySaml::XML.safe_load_nokogiri(document.to_s, check_malformed_doc: check_malformed_doc)
-          rescue StandardError => e
-            raise RubySaml::ValidationError.new("XML load failed: #{e.message}")
-          end
-        end
-
-        signature_node = noko.at_xpath(
-          '//ds:Signature',
-          { 'ds' => RubySaml::XML::DSIG }
-        )
-        return if signature_node.nil?
-
-        signed_info_node = signature_node.at_xpath('./ds:SignedInfo', 'ds' => RubySaml::XML::DSIG)
-        canon_algorithm = extract_canon_algorithm(signed_info_node)
-        signed_info_node = signed_info_node.canonicalize(canon_algorithm)
-        signed_info_node = Nokogiri::XML(signed_info_node.to_xml(save_with: Nokogiri::XML::Node::SaveOptions::AS_XML)).root
-
-        # Remove the signature element from the document
-        signature_node.remove
-
-        # check digests
-        reference_node = signed_info_node.at_xpath('./ds:Reference', { 'ds' => RubySaml::XML::DSIG })
-        return if reference_node.nil?
-
-        signed_element_id = extract_uri(reference_node) || signature_node.parent['ID']
-        body_node = noko.at_xpath("//*[@ID='#{signed_element_id}']")
-        return if body_node.nil?
-
-        canon_algorithm = process_transforms(reference_node, canon_algorithm)
-        inclusive_namespaces = extract_inclusive_namespaces(noko)
-
-        [body_node.canonicalize(canon_algorithm, inclusive_namespaces), signature_node]
-      end
-
-      private
-
-      def extract_canon_algorithm(signed_info_node)
-        canon_method_node = signed_info_node.at_xpath(
-          './ds:CanonicalizationMethod',
-          { 'ds' => RubySaml::XML::DSIG }
-        )
-        RubySaml::XML.canon_algorithm(canon_method_node)
-      end
-
-      def process_transforms(reference_node, canon_algorithm)
-        transforms = reference_node.xpath('./ds:Transforms/ds:Transform', { 'ds' => RubySaml::XML::DSIG })
-
-        # TODO: This should just be a reverse_each
-        transforms.each do |transform_element|
-          algorithm_attr = transform_element['Algorithm']
-          next unless algorithm_attr
-
-          canon_algorithm = RubySaml::XML.canon_algorithm(transform_element, default: false)
-        end
-
-        canon_algorithm
-      end
-
-      # def extract_inclusive_namespaces(doc)
-      #   element = doc.at_xpath(
-      #     '//ec:InclusiveNamespaces',
-      #     { 'ec' => RubySaml::XML::C14N }
-      #   )
-      #   return unless element
-      #
-      #   element['PrefixList']&.split
-      # end
-
-      def extract_uri(reference_node)
-        uri = reference_node&.[]('URI')
-        return nil unless uri
-
-        uri = uri[1..] if uri.start_with?('#')
-        uri unless uri.empty?
+      def uri_from_reference_node
+        uri = reference_node&.[]('URI')&.delete_prefix('#')
+        uri unless !uri || uri.empty?
       end
     end
   end
