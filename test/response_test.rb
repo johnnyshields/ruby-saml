@@ -1787,9 +1787,7 @@ class RubySamlTest < Minitest::Test
       end
     end
 
-    idp_key_algo = :rsa
-    idp_hash_algo = :sha256
-    # each_signature_algorithm do |idp_key_algo, idp_hash_algo|
+    each_signature_algorithm do |idp_key_algo, idp_hash_algo|
       describe "#validate_signature" do
         let(:xml_signed) do
           doc = read_response('response_unsigned2.xml')
@@ -1869,7 +1867,7 @@ class RubySamlTest < Minitest::Test
             assert_includes response_sign_test.errors, 'Invalid Signature on SAML Response'
           end
         end
-      # end
+      end
     end
   end
 end

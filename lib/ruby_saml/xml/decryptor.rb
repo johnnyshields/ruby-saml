@@ -11,15 +11,8 @@ module RubySaml
       # @param decryption_keys [Array] Array of private keys for decryption
       # @return [Nokogiri::XML::Document] The SAML document with assertions decrypted
       def decrypt_document(document, decryption_keys)
-        document_copy = RubySaml::XML.safe_load_nokogiri(document.to_s)
-        decrypt_document!(document_copy, decryption_keys)
-      end
-
-      # Modifies a SAML document to decrypt its EncryptedAssertion element into an Assertion element.
-      # @param document [Nokogiri::XML::Document] The SAML document with the encrypted assertion
-      # @param decryption_keys [Array] Array of private keys for decryption
-      # @return [Nokogiri::XML::Document] The SAML document with the assertion decrypted
-      def decrypt_document!(document, decryption_keys)
+        # Copy the document
+        document = RubySaml::XML.safe_load_nokogiri(document.to_s)
         validate_decryption_keys!(decryption_keys)
 
         response_node = document.at_xpath(

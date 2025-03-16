@@ -797,8 +797,9 @@ module RubySaml
     end
 
     def doc_to_validate
-      # If the response contains the signature, and the assertion was encrypted, validate the original SAML Response
-      # otherwise, review if the decrypted assertion contains a signature
+      # Validate the original SAML Response if the response contains the signature,
+      # and the assertion was encrypted. Otherwise, review if the decrypted assertion
+      # contains a signature.
       subject_id = RubySaml::XML::SignedDocumentValidator.subject_id(document)
       return decrypted_document unless subject_id
 
@@ -963,7 +964,6 @@ module RubySaml
     # @return [RubySaml::XML::SignedDocument] The SAML Response with the assertion decrypted
     #
     def generate_decrypted_document
-      # TODO: try decrypt_document! instead
       RubySaml::XML::Decryptor.decrypt_document(document, settings&.get_sp_decryption_keys)
     end
 

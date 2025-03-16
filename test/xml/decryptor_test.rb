@@ -42,25 +42,21 @@ class XmlDecryptorTest < Minitest::Test
 
         refute_nil decrypted_doc.at_xpath('/p:Response/a:Assertion', { 'p' => RubySaml::XML::NS_PROTOCOL, 'a' => RubySaml::XML::NS_ASSERTION })
       end
-    end
-
-    describe '#decrypt_document!' do
-      it 'should decrypt an encrypted assertion in a document' do
-        decrypted_doc = RubySaml::XML::Decryptor.decrypt_document!(noko_encrypted_assertion_doc, decryption_keys)
-
-        # The encrypted assertion should be removed
-        assert_nil decrypted_doc.at_xpath('/p:Response/EncryptedAssertion', { 'p' => RubySaml::XML::NS_PROTOCOL })
-
-        # An assertion should now be present
-        refute_nil decrypted_doc.at_xpath('/p:Response/a:Assertion', { 'p' => RubySaml::XML::NS_PROTOCOL, 'a' => RubySaml::XML::NS_ASSERTION })
-      end
 
       it 'should handle documents without an encrypted assertion' do
         doc_without_encrypted_assertion = Nokogiri::XML("<Response xmlns='urn:oasis:names:tc:SAML:2.0:protocol'><Assertion xmlns='urn:oasis:names:tc:SAML:2.0:assertion'></Assertion></Response>")
-        result = RubySaml::XML::Decryptor.decrypt_document!(doc_without_encrypted_assertion, decryption_keys)
+        result = RubySaml::XML::Decryptor.decrypt_document(doc_without_encrypted_assertion, decryption_keys)
 
         # Should return the document unmodified
         assert_equal doc_without_encrypted_assertion.to_s, result.to_s
+      end
+
+      it 'does not modify the original document' do
+        original = document_encrypted_assertion.to_s
+        RubySaml::XML::Decryptor.decrypt_document(document_encrypted_assertion, decryption_keys)
+
+        # The original document should not be modified
+        assert_equal original, document_encrypted_assertion.to_s
       end
     end
 
