@@ -80,7 +80,7 @@ module RubySaml
     # @return [String] the NameID provided by the SAML response from the IdP.
     #
     def name_id
-      @name_id ||= name_id_node&.content
+      @name_id ||= name_id_node&.text
     end
 
     alias_method :nameid, :name_id
@@ -162,14 +162,14 @@ module RubySaml
         if e.elements.empty?
           # SAMLCore requires that nil AttributeValues MUST contain xsi:nil XML attribute set to "true" or "1"
           # otherwise the value is to be regarded as empty.
-          %w[true 1].include?(e['xsi:nil']) ? nil : e&.content
+          %w[true 1].include?(e['xsi:nil']) ? nil : e&.text
         else
           # Explicitly support saml2:NameID with saml2:NameQualifier if supplied in attributes
           # this is useful for allowing eduPersonTargetedId to be passed as an opaque identifier to use to
           # identify the subject in an SP rather than email or other less opaque attributes
           # NameQualifier, if present is prefixed with a "/" to the value
           e.xpath('a:NameID', { "a" => RubySaml::XML::NS_ASSERTION }).map do |n|
-            next unless (value = n&.content)
+            next unless (value = n&.text)
             base_path = n['NameQualifier'] ? "#{n['NameQualifier']}/" : ''
             "#{base_path}#{value}"
           end

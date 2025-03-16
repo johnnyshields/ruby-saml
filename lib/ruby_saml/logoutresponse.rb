@@ -69,13 +69,10 @@ module RubySaml
     # @return [String] Gets the Issuer from the Logout Response.
     #
     def issuer
-      @issuer ||= begin
-        node = document.at_xpath(
-          "/p:LogoutResponse/a:Issuer",
-          { "p" => RubySaml::XML::NS_PROTOCOL, "a" => RubySaml::XML::NS_ASSERTION }
-        )
-        Utils.element_text(node)
-      end
+      @issuer ||=document.at_xpath(
+        "/p:LogoutResponse/a:Issuer",
+        { "p" => RubySaml::XML::NS_PROTOCOL, "a" => RubySaml::XML::NS_ASSERTION }
+      )&.text
     end
 
     # @return [String] Gets the StatusCode from a Logout Response.
@@ -88,13 +85,10 @@ module RubySaml
     end
 
     def status_message
-      @status_message ||= begin
-        node = document.at_xpath(
-          "/p:LogoutResponse/p:Status/p:StatusMessage",
-          { "p" => RubySaml::XML::NS_PROTOCOL }
-        )
-        Utils.element_text(node)
-      end
+      @status_message ||= document.at_xpath(
+        "/p:LogoutResponse/p:Status/p:StatusMessage",
+        { "p" => RubySaml::XML::NS_PROTOCOL }
+      )&.text
     end
 
     # Aux function to validate the Logout Response

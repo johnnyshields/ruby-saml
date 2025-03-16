@@ -58,7 +58,7 @@ module RubySaml
 
     # @return [String] The NameID of the Logout Request.
     def name_id
-      @name_id ||= name_id_node&.content
+      @name_id ||= name_id_node&.text
     end
     alias_method :nameid, :name_id
 
@@ -88,13 +88,10 @@ module RubySaml
     # @return [String] Gets the Issuer from the Logout Request.
     #
     def issuer
-      @issuer ||= begin
-        node = document.at_xpath(
-          "/p:LogoutRequest/a:Issuer",
-          { "p" => RubySaml::XML::NS_PROTOCOL, "a" => RubySaml::XML::NS_ASSERTION }
-        )
-        Utils.element_text(node)
-      end
+      @issuer ||= document.at_xpath(
+        "/p:LogoutRequest/a:Issuer",
+        { "p" => RubySaml::XML::NS_PROTOCOL, "a" => RubySaml::XML::NS_ASSERTION }
+      )&.text
     end
 
     # @return [Time|nil] Gets the NotOnOrAfter Attribute value if exists.
@@ -115,12 +112,10 @@ module RubySaml
     # @return [Array] Gets the SessionIndex if exists (Supported multiple values). Empty Array if none found
     #
     def session_indexes
-      nodes = document.xpath(
+      document.xpath(
         "/p:LogoutRequest/p:SessionIndex",
         { "p" => RubySaml::XML::NS_PROTOCOL }
-      )
-
-      nodes.map { |node| Utils.element_text(node) }
+      ).map { |node| node.text }
     end
 
     private

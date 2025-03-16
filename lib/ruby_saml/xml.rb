@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'rexml/element'
 require 'openssl'
 require 'nokogiri'
 require 'digest/sha1'
@@ -51,9 +50,9 @@ module RubySaml
                        Nokogiri::XML::ParseOptions::NONET
 
     # Safely load the SAML Message XML.
-    # @param document [REXML::Document] The message to be loaded
+    # @param document [String | Nokogiri::XML::Document] The message to be loaded
     # @param check_malformed_doc [Boolean] check_malformed_doc Enable or Disable the check for malformed XML
-    # @return [Nokogiri::XML] The nokogiri document
+    # @return [Nokogiri::XML::Document] The nokogiri document
     # @raise [ValidationError] If there was a problem loading the SAML Message XML
     def safe_load_nokogiri(document, check_malformed_doc: true)
       doc_str = document.to_s
@@ -72,7 +71,7 @@ module RubySaml
         end
       end
 
-      # TODO: This is messy, its shims how the old work REXML parser
+      # TODO: This is messy, its shims how the old REXML parser works
       if xml
         error ||= StandardError.new('Dangerous XML detected. No Doctype nodes allowed') if xml.internal_subset
         error ||= StandardError.new("There were XML errors when parsing: #{xml.errors}") if check_malformed_doc && !xml.errors.empty?

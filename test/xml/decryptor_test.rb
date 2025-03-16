@@ -158,7 +158,7 @@ class XmlDecryptorTest < Minitest::Test
         assert_equal 'NameID', decrypted_nameid.name
         assert_equal RubySaml::XML::NS_ASSERTION, decrypted_nameid.namespace.href
         assert_equal 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress', decrypted_nameid['Format']
-        assert_equal 'test@onelogin.com', decrypted_nameid.content
+        assert_equal 'test@onelogin.com', decrypted_nameid.text
       end
 
       it 'should raise an error when no decryption keys are provided' do

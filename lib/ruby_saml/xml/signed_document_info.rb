@@ -178,7 +178,7 @@ module RubySaml
         cert = noko.at_xpath(
           '//ds:X509Certificate',
           { 'ds' => RubySaml::XML::DSIG }
-        )&.content&.strip
+        )&.text&.strip
         Base64.decode64(cert) if cert && !cert.empty?
       end
 
