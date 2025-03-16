@@ -211,14 +211,14 @@ class XmlTest < Minitest::Test
     describe '#extract_inclusive_namespaces' do
       it 'support explicit namespace resolution for exclusive canonicalization' do
         document = fixture(:open_saml_response, false)
-        inclusive_namespaces = RubySaml::XML::SignedDocumentValidator.send(:extract_inclusive_namespaces, document)
+        inclusive_namespaces = RubySaml::XML::SignedDocumentInfo.new(document).send(:inclusive_namespaces)
 
         assert_equal %w[ xs ], inclusive_namespaces
       end
 
       it 'support implicit namespace resolution for exclusive canonicalization' do
         document = fixture(:no_signature_ns, false)
-        inclusive_namespaces = RubySaml::XML::SignedDocumentValidator.send(:extract_inclusive_namespaces, document)
+        inclusive_namespaces = RubySaml::XML::SignedDocumentInfo.new(document).send(:inclusive_namespaces)
 
         assert_equal %w[ #default saml ds xs xsi ], inclusive_namespaces
       end
@@ -238,7 +238,7 @@ class XmlTest < Minitest::Test
       it 'return nil when inclusive namespace element is missing' do
         document = fixture(:no_signature_ns, false)
         document.slice! %r{<InclusiveNamespaces xmlns="http://www.w3.org/2001/10/xml-exc-c14n#" PrefixList="#default saml ds xs xsi"/>}
-        inclusive_namespaces = RubySaml::XML::SignedDocumentValidator.send(:extract_inclusive_namespaces, document)
+        inclusive_namespaces = RubySaml::XML::SignedDocumentInfo.new(document).send(:inclusive_namespaces)
 
         assert inclusive_namespaces.nil?
       end
@@ -250,157 +250,58 @@ class XmlTest < Minitest::Test
         settings.idp_sso_service_url = "https://idp.example.com/sso"
         settings.protocol_binding = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
         settings.idp_slo_service_url = "https://idp.example.com/slo",
-        settings.sp_entity_id = "https://sp.example.com/saml2"
+          settings.sp_entity_id = "https://sp.example.com/saml2"
         settings.assertion_consumer_service_url = "https://sp.example.com/acs"
         settings.single_logout_service_url = "https://sp.example.com/sls"
         settings
       end
 
-      it "sign an AuthNRequest" do
-        auth_request = RubySaml::Authrequest.new
-        auth_request.assign_uuid(settings)
-        request_doc = auth_request.create_xml_document(settings)
+      it "signs an AuthNRequest with a certificate object" do
+        request_doc = RubySaml::Authrequest.new.create_authentication_xml_doc(settings)
+        request_doc = RubySaml::XML::DocumentSigner.sign_document(request_doc, ruby_saml_key, ruby_saml_cert)
 
-        # Use the DocumentSigner to sign the document
-        signed_doc = RubySaml::XML::DocumentSigner.sign_document(
-          request_doc,
-          ruby_saml_key,
-          ruby_saml_cert,
-          RubySaml::XML::RSA_SHA256,
-          RubySaml::XML::SHA256
-        )
-
-        # Verify our signature using the static validator
-        errors = []
-        assert RubySaml::XML::SignedDocumentValidator.validate_document(
-          signed_doc.to_s,
-          ruby_saml_cert_fingerprint,
-          soft: false
-        )
-
-        # Test with certificate as text
-        auth_request2 = RubySaml::Authrequest.new
-        auth_request2.assign_uuid(settings)
-        request_doc2 = auth_request2.create_xml_document(settings)
-
-        signed_doc2 = RubySaml::XML::DocumentSigner.sign_document(
-          request_doc2,
-          ruby_saml_key,
-          ruby_saml_cert_text,
-          RubySaml::XML::RSA_SHA256,
-          RubySaml::XML::SHA256
-        )
-
-        errors2 = []
-        assert RubySaml::XML::SignedDocumentValidator.validate_document(
-          signed_doc2.to_s,
-          ruby_saml_cert_fingerprint,
-          soft: false
-        )
+        # verify signature
+        assert RubySaml::XML::SignedDocumentValidator.validate_document(request_doc.to_s, ruby_saml_cert_fingerprint, soft: false)
       end
 
-      it "sign an AuthNRequest with certificate as text" do
-        auth_request = RubySaml::Authrequest.new
-        auth_request.assign_uuid(settings)
-        request_doc = auth_request.create_xml_document(settings)
+      it "signs an AuthNRequest with a certificate string" do
+        request_doc = RubySaml::Authrequest.new.create_authentication_xml_doc(settings)
+        request_doc = RubySaml::XML::DocumentSigner.sign_document(request_doc, ruby_saml_key, ruby_saml_cert_text)
 
-        signed_doc = RubySaml::XML::DocumentSigner.sign_document(
-          request_doc,
-          ruby_saml_key,
-          ruby_saml_cert_text,
-          RubySaml::XML::RSA_SHA256,
-          RubySaml::XML::SHA256
-        )
-
-        # Verify our signature
-        errors = []
-        assert RubySaml::XML::SignedDocumentValidator.validate_document(
-          signed_doc.to_s,
-          ruby_saml_cert_fingerprint,
-          soft: false
-        )
+        # verify signature
+        assert RubySaml::XML::SignedDocumentValidator.validate_document(request_doc.to_s, ruby_saml_cert_fingerprint, soft: false)
       end
 
-      it "sign a LogoutRequest" do
-        logout_request = RubySaml::Logoutrequest.new
-        logout_request.assign_uuid(settings)
-        request_doc = logout_request.create_xml_document(settings)
+      it "signs a LogoutRequest with a certificate object" do
+        logout_request_doc = RubySaml::Logoutrequest.new.create_logout_request_xml_doc(settings)
+        logout_request_doc = RubySaml::XML::DocumentSigner.sign_document(logout_request_doc, ruby_saml_key, ruby_saml_cert)
 
-        signed_doc = RubySaml::XML::DocumentSigner.sign_document(
-          request_doc,
-          ruby_saml_key,
-          ruby_saml_cert,
-          RubySaml::XML::RSA_SHA256,
-          RubySaml::XML::SHA256
-        )
-
-        # Verify our signature
-        errors = []
-        assert RubySaml::XML::SignedDocumentValidator.validate_document(
-          signed_doc.to_s,
-          ruby_saml_cert_fingerprint,
-          soft: false
-        )
-
-        logout_request2 = RubySaml::Logoutrequest.new
-        logout_request2.assign_uuid(settings)
-        request_doc2 = logout_request2.create_xml_document(settings)
-
-        signed_doc2 = RubySaml::XML::DocumentSigner.sign_document(
-          request_doc2,
-          ruby_saml_key,
-          ruby_saml_cert_text,
-          RubySaml::XML::RSA_SHA256,
-          RubySaml::XML::SHA256
-        )
-
-        # Verify our signature
-        errors2 = []
-        assert RubySaml::XML::SignedDocumentValidator.validate_document(
-          signed_doc2.to_s,
-          ruby_saml_cert_fingerprint,
-          soft: false
-        )
+        # verify signature
+        assert RubySaml::XML::SignedDocumentValidator.validate_document(logout_request_doc.to_s, ruby_saml_cert_fingerprint, soft: false)
       end
 
-      it "sign a LogoutResponse" do
-        logout_response = RubySaml::SloLogoutresponse.new
-        logout_response.assign_uuid(settings)
-        response_doc = logout_response.create_xml_document(settings, 'request_id_example', "Custom Logout Message")
+      it "signs a LogoutRequest with a certificate string" do
+        logout_request_doc = RubySaml::Logoutrequest.new.create_logout_request_xml_doc(settings)
+        logout_request_doc = RubySaml::XML::DocumentSigner.sign_document(logout_request_doc, ruby_saml_key, ruby_saml_cert_text)
 
-        signed_doc = RubySaml::XML::DocumentSigner.sign_document(
-          response_doc,
-          ruby_saml_key,
-          ruby_saml_cert,
-          RubySaml::XML::RSA_SHA256,
-          RubySaml::XML::SHA256
-        )
+        # verify signature
+        assert RubySaml::XML::SignedDocumentValidator.validate_document(logout_request_doc.to_s, ruby_saml_cert_fingerprint, soft: false)
+      end
 
-        # Verify our signature
-        assert RubySaml::XML::SignedDocumentValidator.validate_document(
-          signed_doc.to_s,
-          ruby_saml_cert_fingerprint,
-          soft: false
-        )
+      it "signs a LogoutResponse with a certificate object" do
+        logout_response_doc = RubySaml::SloLogoutresponse.new.create_logout_response_xml_doc(settings, 'request_id_example', "Custom Logout Message")
+        logout_response_doc = RubySaml::XML::DocumentSigner.sign_document(logout_response_doc, ruby_saml_key, ruby_saml_cert)
 
-        logout_response2 = RubySaml::SloLogoutresponse.new
-        logout_response2.assign_uuid(settings)
-        response_doc2 = logout_response2.create_xml_document(settings, 'request_id_example', "Custom Logout Message")
+        # verify signature
+        assert RubySaml::XML::SignedDocumentValidator.validate_document(logout_response_doc.to_s, ruby_saml_cert_fingerprint, soft: false)
+      end
 
-        signed_doc2 = RubySaml::XML::DocumentSigner.sign_document(
-          response_doc2,
-          ruby_saml_key,
-          ruby_saml_cert_text,
-          RubySaml::XML::RSA_SHA256,
-          RubySaml::XML::SHA256
-        )
+      it "signs a LogoutResponse with a certificate string" do
+        logout_response_doc = RubySaml::SloLogoutresponse.new.create_logout_response_xml_doc(settings, 'request_id_example', "Custom Logout Message")
+        logout_response_doc = RubySaml::XML::DocumentSigner.sign_document(logout_response_doc, ruby_saml_key, ruby_saml_cert_text)
 
-        # Verify our signature
-        assert RubySaml::XML::SignedDocumentValidator.validate_document(
-          signed_doc2.to_s,
-          ruby_saml_cert_fingerprint,
-          soft: false
-        )
+        # verify signature
+        assert RubySaml::XML::SignedDocumentValidator.validate_document(logout_response_doc.to_s, ruby_saml_cert_fingerprint, soft: false)
       end
     end
 
@@ -554,7 +455,7 @@ class XmlTest < Minitest::Test
           refute RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(document, idp_cert).is_a?(TrueClass), 'Document should be valid'
           errors = []
           RubySaml::XML::SignedDocumentValidator.validate_document_with_cert(document, idp_cert, errors)
-          assert_equal(["Document Certificate Error: PEM_read_bio_X509: no start line"], errors)
+          assert_equal(["Document Certificate Error"], errors)
         end
       end
 

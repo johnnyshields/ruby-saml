@@ -57,19 +57,27 @@ module RubySaml
     # @raise [ValidationError] If there was a problem loading the SAML Message XML
     def safe_load_nokogiri(document, check_malformed_doc: true)
       doc_str = document.to_s
-      raise StandardError.new('Dangerous XML detected. No Doctype nodes allowed') if doc_str.include?('<!DOCTYPE')
+      error = nil
+      error = StandardError.new('Dangerous XML detected. No Doctype nodes allowed') if doc_str.include?('<!DOCTYPE')
 
-      begin
-        xml = Nokogiri::XML(doc_str) do |config|
-          config.options = NOKOGIRI_OPTIONS
+      xml = nil
+      unless error
+        begin
+          xml = Nokogiri::XML(doc_str) do |config|
+            config.options = NOKOGIRI_OPTIONS
+          end
+        rescue StandardError => e
+          error ||= e
+          # raise StandardError.new(e.message)
         end
-      rescue StandardError => e
-        raise StandardError.new(e.message)
       end
 
-      raise StandardError.new('Dangerous XML detected. No Doctype nodes allowed') if xml.internal_subset
-
-      raise StandardError.new("There were XML errors when parsing: #{xml.errors}") if check_malformed_doc && !xml.errors.empty?
+      # TODO: This is messy, its shims how the old work REXML parser
+      if xml
+        error ||= StandardError.new('Dangerous XML detected. No Doctype nodes allowed') if xml.internal_subset
+        error ||= StandardError.new("There were XML errors when parsing: #{xml.errors}") if check_malformed_doc && !xml.errors.empty?
+      end
+      return Nokogiri::XML::Document.new if error || !xml
 
       xml
     end

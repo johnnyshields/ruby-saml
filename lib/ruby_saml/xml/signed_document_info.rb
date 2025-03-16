@@ -61,6 +61,10 @@ module RubySaml
 
         # Compare digest
         calculated_digest = digest_algorithm.digest(canonicalized_subject)
+        # puts "calculated_digest: #{calculated_digest.bytes}"
+        # puts "digest_value: #{digest_value.bytes}"
+        # puts "subject" + canonicalized_subject.inspect
+        # puts "\n\n\n\n\n\n"
         unless calculated_digest == digest_value
           raise RubySaml::ValidationError.new('Digest mismatch')
         end
@@ -107,7 +111,7 @@ module RubySaml
       # Get the canonicalized SignedInfo element
       # @return [String] The canonicalized SignedInfo element
       def canonicalized_signed_info
-        signed_info_node.canonicalize(canon_algorithm_from_signed_info)
+        @canonicalized_signed_info ||= signed_info_node.canonicalize(canon_algorithm_from_signed_info)
       end
 
       # Get the Reference node
@@ -120,7 +124,7 @@ module RubySaml
       # Get the ID of the signed element
       # @return [String] The ID of the signed element
       def subject_id
-        id = uri_from_reference_node || signature_node.parent['ID']
+        id = uri_from_reference_node || signature_node.parent&.[]('ID')
         return id unless !id || id.empty?
         raise RubySaml::ValidationError.new('No signed subject ID found')
       end
@@ -135,9 +139,17 @@ module RubySaml
       # Get the canonicalized subject node (the node being signed)
       # @return [String] The canonicalized subject
       def canonicalized_subject
-        dupe = Nokogiri::XML(subject_node.to_xml(save_with: Nokogiri::XML::Node::SaveOptions::AS_XML)).root
-        dupe.xpath('//ds:Signature', { 'ds' => RubySaml::XML::DSIG }).each(&:remove)
-        dupe.canonicalize(canon_algorithm, inclusive_namespaces)
+        remove_signature_node!
+        subject_node.canonicalize(canon_algorithm, inclusive_namespaces)
+      end
+
+      # TODO: Destructive side-effect!! signature_node.remove
+      # should possibly deep copy the noko object initially
+      def remove_signature_node!
+        inclusive_namespaces # memoize this
+        canonicalized_signed_info # memoize this
+
+        signature_node.remove
       end
 
       # Get the digest algorithm
@@ -194,10 +206,12 @@ module RubySaml
       # Extract inclusive namespaces from the document
       # @return [Array<String>, nil] The inclusive namespaces
       def inclusive_namespaces
-        noko.at_xpath(
-          '//ec:InclusiveNamespaces',
-          { 'ec' => RubySaml::XML::C14N }
-        )&.[]('PrefixList')&.split
+        @inclusive_namespaces ||= begin
+          noko.at_xpath(
+            '//ec:InclusiveNamespaces',
+            { 'ec' => RubySaml::XML::C14N }
+          )&.[]('PrefixList')&.split
+        end
       end
 
       private
@@ -205,8 +219,10 @@ module RubySaml
       # Get the ds:Signature element from the document
       # @return [Nokogiri::XML::Element] The Signature element
       def signature_node
-        noko.at_xpath('//ds:Signature', { 'ds' => RubySaml::XML::DSIG }) ||
-          (raise RubySaml::ValidationError.new('No Signature node found'))
+        @signature_node ||= begin
+          noko.at_xpath('//ds:Signature', { 'ds' => RubySaml::XML::DSIG }) ||
+            (raise RubySaml::ValidationError.new('No Signature node found'))
+        end
       end
 
       # Get the ds:SignedInfo element from the document
