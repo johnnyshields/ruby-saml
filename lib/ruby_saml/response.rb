@@ -819,23 +819,26 @@ module RubySaml
     #
     def validate_signature
       error_msg = "Invalid Signature on SAML Response"
-
       doc = doc_to_validate
-      subject_id = RubySaml::XML::SignedDocumentValidator.subject_id(document)
-      return false unless subject_id
 
-      sig_elements = document.xpath(
-        "/p:Response[@ID=$id]/ds:Signature",
-        { "p" => RubySaml::XML::NS_PROTOCOL, "ds" => RubySaml::XML::DSIG },
-        id: subject_id
-      )
+      # TODO: document vs doc is super confusing
+      subject_id = RubySaml::XML::SignedDocumentValidator.subject_id(document)
+      sig_elements = []
+      if subject_id
+        sig_elements = document.xpath(
+          "/p:Response[@ID=$id]/ds:Signature",
+          { "p" => RubySaml::XML::NS_PROTOCOL, "ds" => RubySaml::XML::DSIG },
+          id: subject_id
+        )
+      end
 
       # Check signature node inside assertion
       if sig_elements.empty?
+        subject_id2 = RubySaml::XML::SignedDocumentValidator.subject_id(doc)
         sig_elements = doc.xpath(
           "/p:Response/a:Assertion[@ID=$id]/ds:Signature",
           SAML_NAMESPACES,
-          id: subject_id
+          id: subject_id2
         )
       end
 

@@ -13,7 +13,11 @@ module RubySaml
       # @param noko [Nokogiri::XML] The XML document to validate
       # @param check_malformed_doc [Boolean] Whether to check for malformed documents
       def initialize(noko, check_malformed_doc: true)
-        noko = RubySaml::XML.safe_load_nokogiri(noko, check_malformed_doc: check_malformed_doc) unless noko.is_a?(Nokogiri::XML::Document)
+        noko = if noko.is_a?(Nokogiri::XML::Document)
+                 RubySaml::XML.copy_nokogiri(noko)
+               else
+                 RubySaml::XML.safe_load_nokogiri(noko, check_malformed_doc: check_malformed_doc)
+               end
         @noko = noko
         @check_malformed_doc = check_malformed_doc
       end
@@ -52,15 +56,7 @@ module RubySaml
 
         # Compare digest
         calculated_digest = digest_algorithm.digest(canonicalized_subject)
-        # puts "calculated_digest: #{calculated_digest.bytes}"
-        # puts "digest_value: #{digest_value.bytes}"
-        # puts "subject" + canonicalized_subject.inspect
-        # puts "\n\n\n\n\n\n"
         raise RubySaml::ValidationError.new('Digest mismatch') unless calculated_digest == digest_value
-
-        # puts "signature_hash_algorithm: #{signature_hash_algorithm}"
-        # puts "signature_value: #{signature_value.bytes}"
-        # puts "canonicalized_signed_info: #{canonicalized_signed_info.inspect}"
 
         # Verify signature
         signature_verified = false
@@ -113,10 +109,8 @@ module RubySaml
       # Get the ID of the signed element
       # @return [String] The ID of the signed element
       def subject_id
-        id = uri_from_reference_node || signature_node.parent&.[]('ID')
-        return id unless !id || id.empty?
-
-        raise RubySaml::ValidationError.new('No signed subject ID found')
+        # TODO: The error here is problematic, perhaps it can be checked elsewhere
+        @subject_id ||= extract_subject_id || (raise RubySaml::ValidationError.new('No signed subject ID found'))
       end
 
       # Get the subject node (the node being signed)
@@ -136,8 +130,10 @@ module RubySaml
       # TODO: Destructive side-effect!! signature_node.remove
       # should possibly deep copy the noko object initially
       def remove_signature_node!
-        inclusive_namespaces # memoize this
-        canonicalized_signed_info # memoize this
+        # memoize various elements
+        subject_id
+        inclusive_namespaces
+        canonicalized_signed_info
 
         signature_node.remove
       end
@@ -205,6 +201,12 @@ module RubySaml
 
       private
 
+      def extract_subject_id
+        return unless reference_node
+
+        reference_node['URI'][1..] || signature_node.parent['ID']
+      end
+
       # Get the ds:Signature element from the document
       # @return [Nokogiri::XML::Element] The Signature element
       def signature_node
@@ -235,11 +237,6 @@ module RubySaml
         transforms = reference_node.xpath('./ds:Transforms/ds:Transform', { 'ds' => RubySaml::XML::DSIG })
         transform_element = transforms.reverse.detect { |el| el['Algorithm'] }
         RubySaml::XML.canon_algorithm(transform_element, default: false)
-      end
-
-      def uri_from_reference_node
-        uri = reference_node&.[]('URI')&.delete_prefix('#')
-        uri unless !uri || uri.empty?
       end
     end
   end

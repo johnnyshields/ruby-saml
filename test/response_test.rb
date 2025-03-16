@@ -376,12 +376,11 @@ class RubySamlTest < Minitest::Test
         end
 
         it "support dynamic namespace resolution on signature elements" do
-          no_signature_response = RubySaml::Response.new(fixture("no_signature_ns.xml"))
+          no_signature_response = RubySaml::Response.new(fixture("inclusive_namespaces.xml"))
           no_signature_response.stubs(:conditions).returns(nil)
           no_signature_response.stubs(:validate_subject_confirmation).returns(true)
           no_signature_response.settings = settings
-          no_signature_response.settings.idp_cert_fingerprint = "3D:C5:BC:58:60:5D:19:64:94:E3:BA:C8:3D:49:01:D5:56:34:44:65:C2:85:0A:A8:65:A5:AC:76:7E:65:1F:F7"
-          RubySaml::XML::SignedDocumentValidator.expects(:validate_signature).returns(true)
+          no_signature_response.settings.idp_cert_fingerprint = "E0:89:CF:86:E3:00:C0:C8:B9:BC:04:16:D7:F3:8D:8D:9C:8F:20:B3:FE:7C:EC:64:D5:5D:90:E3:7B:8B:5A:51"
           assert no_signature_response.is_valid?
         end
 

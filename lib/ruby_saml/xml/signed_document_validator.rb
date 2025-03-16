@@ -40,21 +40,10 @@ module RubySaml
       end
 
       # TODO: This is a workaround to avoid errors
-      def subject_id(noko)
-        # TODO: Should be this
-        # SignedDocumentInfo.new(document).subject_id
-        noko = RubySaml::XML.safe_load_nokogiri(noko) unless noko.is_a?(Nokogiri::XML::Document)
-        reference_element = noko.at_xpath(
-          '//ds:Signature/ds:SignedInfo/ds:Reference',
-          { 'ds' => RubySaml::XML::DSIG }
-        )
-
-        return nil if reference_element.nil?
-
-        sei = reference_element['URI'].delete_prefix('#')
-        return sei unless !sei || sei.empty?
-
-        reference_element.parent.parent.parent['ID']
+      def subject_id(document)
+        SignedDocumentInfo.new(document).subject_id
+      rescue RubySaml::ValidationError
+        # TODO: Consider removing the error in SignedDocumentInfo#subject_id
       end
 
       def subject_node(document)

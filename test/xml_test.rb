@@ -391,11 +391,12 @@ class XmlTest < Minitest::Test
 
       describe 'signature wrapping attack - concealed SAML response body' do
         let(:document_data) { read_invalid_response("response_with_concealed_signed_assertion.xml") }
+        let(:document) { RubySaml::Response.new(document_data) }
         let(:fingerprint) { '6385109dd146a45d4382799491cb2707bd1ebda3738f27a0e4a4a8159c0fe6cd' }
 
-        it 'is valid, but fails to retrieve information' do
-          assert RubySaml::XML::SignedDocumentValidator.validate_document(document, fingerprint), 'Document should be valid'
-          assert response.name_id.nil?, 'Document should expose only signed, valid details'
+        it 'is valid, but the unsigned information is ignored in favour of the signed information' do
+          assert RubySaml::XML::SignedDocumentValidator.validate_document(document.document, fingerprint), 'Document should be valid'
+          assert_equal 'someone@example.org', document.name_id, 'Document should expose only signed, valid details'
         end
       end
     end

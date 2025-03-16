@@ -91,15 +91,11 @@ module RubySaml
       xml
     end
 
-    # def clone_node(node)
-    #   if node.is_a?(Nokogiri::XML::Node)
-    #     node.to_xml(save_with: Nokogiri::XML::Node::SaveOptions::AS_XML)
-    #   end
-    #
-    #   Nokogiri::XML(doc_str) do |config|
-    #     config.options = NOKOGIRI_OPTIONS
-    #   end
-    # end
+    def copy_nokogiri(noko)
+      Nokogiri::XML(noko.to_xml(save_with: Nokogiri::XML::Node::SaveOptions::AS_XML)) do |config|
+        config.options = NOKOGIRI_OPTIONS
+      end
+    end
 
     # Lookup XML canonicalization algorithm.
     # @api private
