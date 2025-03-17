@@ -5,6 +5,7 @@ require "net/http"
 require "net/https"
 require "nokogiri"
 
+# TODO: Move to Idp folder?
 module RubySaml
   # Auxiliary class to retrieve and parse the Identity Provider Metadata.
   # This class does not validate in any way the URL that is introduced,

@@ -1,12 +1,10 @@
 # frozen_string_literal: true
 
-require "ruby_saml/xml"
-require "ruby_saml/saml_message"
-require "time"
-
 module RubySaml
-  # SAML2 Logout Response (SLO IdP initiated, Parser)
-  class Logoutresponse < SamlMessage
+module Messages
+module Idp
+  # SAML2 LogoutResponse (SLO IdP-initiated, Parser)
+  class LogoutResponse < MessageParser
     include ErrorHandling
 
     # RubySaml::Settings Toolkit settings
@@ -259,4 +257,6 @@ module RubySaml
       true
     end
   end
+end
+end
 end

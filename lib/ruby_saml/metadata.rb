@@ -4,6 +4,7 @@ require "uri"
 require "ruby_saml/logging"
 require "ruby_saml/utils"
 
+# TODO: Move to SP folder?
 module RubySaml
   # SAML2 Metadata. XML Metadata Builder
   class Metadata

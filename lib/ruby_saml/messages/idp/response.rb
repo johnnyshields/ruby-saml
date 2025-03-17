@@ -1,13 +1,10 @@
 # frozen_string_literal: true
 
-require "ruby_saml/xml"
-require "ruby_saml/attributes"
-require "time"
-require "nokogiri"
-
 module RubySaml
-  # SAML2 Authentication Response. SAML Response
-  class Response < SamlMessage
+module Messages
+module Idp
+  # SAML2 Response containing a SAML Assertion (SSO, Parser)
+  class Response < MessageParser
     include ErrorHandling
 
     # TODO: Migrate this to RubySaml::XML
@@ -285,24 +282,24 @@ module RubySaml
     #
     def issuers
       @issuers ||= begin
-                     issuer_response_nodes = document.xpath(
-                       "/p:Response/a:Issuer",
-                       SAML_NAMESPACES
-                     )
+        issuer_response_nodes = document.xpath(
+         "/p:Response/a:Issuer",
+         SAML_NAMESPACES
+        )
 
-                     unless issuer_response_nodes.size == 1
-                       error_msg = "Issuer of the Response not found or multiple."
-                       raise ValidationError.new(error_msg)
-                     end
+        unless issuer_response_nodes.size == 1
+          error_msg = "Issuer of the Response not found or multiple."
+          raise ValidationError.new(error_msg)
+        end
 
-                     issuer_assertion_nodes = xpath_from_signed_assertion("/a:Issuer")
-                     unless issuer_assertion_nodes.size == 1
-                       error_msg = "Issuer of the Assertion not found or multiple."
-                       raise ValidationError.new(error_msg)
-                     end
+        issuer_assertion_nodes = xpath_from_signed_assertion("/a:Issuer")
+        unless issuer_assertion_nodes.size == 1
+          error_msg = "Issuer of the Assertion not found or multiple."
+          raise ValidationError.new(error_msg)
+        end
 
-                     nodes = issuer_response_nodes + issuer_assertion_nodes
-                     nodes.map(&:text).reject(&:empty?).uniq
+        nodes = issuer_response_nodes + issuer_assertion_nodes
+        nodes.map(&:text).reject(&:empty?).uniq
       end
     end
 
@@ -323,12 +320,8 @@ module RubySaml
     end
 
     # @return [Array] The Audience elements from the Contitions of the SAML Response.
-    #
     def audiences
-      @audiences ||= begin
-        nodes = xpath_from_signed_assertion('/a:Conditions/a:AudienceRestriction/a:Audience')
-        nodes.map(&:text).reject(&:empty?)
-      end
+      @audiences ||= xpath_from_signed_assertion('/a:Conditions/a:AudienceRestriction/a:Audience').map(&:text).reject(&:empty?)
     end
 
     # returns the allowed clock drift on timing validation
@@ -341,10 +334,10 @@ module RubySaml
     # @return [Boolean] True if the SAML Response contains an EncryptedAssertion element
     #
     def assertion_encrypted?
-      !document.at_xpath(
+      !!document.at_xpath(
         "/p:Response/EncryptedAssertion | /p:Response/a:EncryptedAssertion",
         SAML_NAMESPACES
-      ).nil?
+      )
     end
 
     def response_id
@@ -352,10 +345,7 @@ module RubySaml
     end
 
     def assertion_id
-      @assertion_id ||= begin
-                          node = xpath_first_from_signed_assertion('')
-                          node.nil? ? nil : node['ID']
-      end
+      @assertion_id ||= xpath_first_from_signed_assertion('')&.[]('ID')
     end
 
     private
@@ -584,7 +574,7 @@ module RubySaml
       return true if options[:matches_request_id].nil?
       return true unless options[:matches_request_id] != in_response_to
 
-      error_msg = "The InResponseTo of the Response: #{in_response_to}, does not match the ID of the AuthNRequest sent by the SP: #{options[:matches_request_id]}"
+      error_msg = "The InResponseTo of the Response: #{in_response_to}, does not match the ID of the AuthnRequest sent by the SP: #{options[:matches_request_id]}"
       append_error(error_msg)
     end
 
@@ -985,4 +975,6 @@ module RubySaml
       check_malformed_doc?(settings)
     end
   end
+end
+end
 end

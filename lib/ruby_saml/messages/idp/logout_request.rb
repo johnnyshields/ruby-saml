@@ -1,14 +1,10 @@
 # frozen_string_literal: true
 
-require 'zlib'
-require 'time'
-require 'nokogiri'
-
-require "ruby_saml/saml_message"
-
 module RubySaml
-  # SAML2 Logout Request (SLO IdP initiated, Parser)
-  class SloLogoutrequest < SamlMessage
+module Messages
+module Idp
+  # SAML2 Logout Request (SLO IdP-initiated, Parser)
+  class LogoutRequest < MessageParser
     include ErrorHandling
 
     # RubySaml::Settings Toolkit settings
@@ -293,4 +289,6 @@ module RubySaml
       true
     end
   end
+end
+end
 end

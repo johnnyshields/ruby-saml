@@ -1,13 +1,10 @@
 # frozen_string_literal: true
 
-require "ruby_saml/logging"
-require "ruby_saml/saml_message"
-require "ruby_saml/utils"
-require "ruby_saml/setting_error"
-
 module RubySaml
-  # SAML2 Logout Response (SLO SP initiated, Parser)
-  class SloLogoutresponse < SamlMessage
+module Messages
+module Sp
+  # SAML2 Logout Response (SLO SP-initiated, Builder)
+  class SloLogoutResponse < MessageBuilder
 
     # Logout Response ID
     attr_accessor :uuid
@@ -141,4 +138,6 @@ module RubySaml
       @uuid ||= RubySaml::Utils.generate_uuid(settings.sp_uuid_prefix) # rubocop:disable Naming/MemoizedInstanceVariableName
     end
   end
+end
+end
 end
